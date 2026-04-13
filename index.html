@@ -15,7 +15,7 @@
   .section-card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:28px;margin-bottom:24px;animation:fadeIn 0.5s ease}
   .input-group{margin-bottom:20px}
   .input-label{display:block;margin-bottom:8px;font-size:0.9rem;color:var(--accent2);font-weight:600}
-  input[type="text"]{width:100%;padding:12px;border-radius:10px;border:1px solid var(--border);background:var(--card2);color:white;outline:none}
+  input[type="text"], input[type="password"]{width:100%;padding:12px;border-radius:10px;border:1px solid var(--border);background:var(--card2);color:white;outline:none}
   .upload-area{border:2px dashed var(--border);border-radius:20px;padding:40px 24px;text-align:center;cursor:pointer;background:var(--card);transition:all 0.3s}
   .upload-area:hover{border-color:var(--accent);background:#1e1b3a}
   .btn{display:inline-flex;align-items:center;gap:8px;padding:12px 24px;border-radius:12px;border:none;cursor:pointer;font-size:1rem;font-weight:600}
@@ -44,9 +44,10 @@
   <div id="uploadSection">
     <div class="section-card">
       <div class="input-group">
-  <label class="input-label">🔑 구글 API 키 (보안을 위해 직접 입력)</label>
-  <input type="password" id="apiKeyInput" placeholder="여기에 API 키를 붙여넣으세요">
-</div>
+        <label class="input-label">🔑 구글 API 키 (보안을 위해 직접 입력)</label>
+        <input type="password" id="apiKeyInput" placeholder="여기에 API 키를 붙여넣으세요">
+      </div>
+      <div class="input-group">
         <label class="input-label">📌 과목명 및 시험 범위</label>
         <input type="text" id="subjectInput" placeholder="예: 성인간호학 - 순환기계 구조와 기능">
       </div>
@@ -74,38 +75,55 @@
       <button class="tab active" id="tabSummary" onclick="switchTab('summary')">📖 개념 강의</button>
       <button class="tab" id="tabQuiz" onclick="switchTab('quiz')">✍ 국시 대비 문제</button>
     </div>
+    
     <div id="summaryTab">
       <div class="section-card"><div id="keywords"></div><div class="summary-text" id="lectureContent" style="margin-top:20px"></div></div>
     </div>
+    
     <div id="quizTab" class="hidden">
-      <div id="quizArea">
+      <div id="quizSetup" class="section-card" style="text-align:center; padding:40px;">
+        <h2 style="margin-bottom:20px; color:var(--accent2);">🧠 맞춤형 퀴즈 설정</h2>
+        <div style="margin-bottom:30px;">
+          <label style="font-size:1.1rem; font-weight:600;">출제할 문항 수 (10~50개) : </label>
+          <input type="number" id="quizCountInput" min="10" max="50" value="10" style="width:80px; padding:10px; border-radius:8px; border:1px solid var(--border); background:var(--card2); color:white; text-align:center; font-size:1.1rem; outline:none; margin-left:10px;">
+        </div>
+        <button class="btn btn-primary" onclick="startQuizGen()" style="padding:15px; font-size:1.1rem;">🚀 퀴즈 생성 시작</button>
+      </div>
+
+      <div id="quizArea" class="hidden">
         <div id="quizProgress" style="margin-bottom:15px; font-weight:600; color:var(--accent2)"></div>
         <div id="questionCard" class="section-card"></div>
-        <button class="btn btn-primary" id="nextBtn" onclick="nextQuestion()" disabled>다음 개념으로</button>
+        <button class="btn btn-primary" id="nextBtn" onclick="nextQuestion()" disabled>다음 문제로</button>
+      </div>
+
+      <div id="quizReviewArea" class="hidden section-card">
+        <h2 style="text-align:center; color:var(--accent2); margin-bottom:10px;">📝 오답 노트 확인</h2>
+        <h3 id="finalScore" style="text-align:center; margin-bottom:30px; color:var(--muted);"></h3>
+        <div id="reviewList"></div>
+        <button class="btn btn-primary" onclick="location.reload()" style="margin-top:20px;">🔄 처음부터 다시 학습하기</button>
       </div>
     </div>
   </div>
 </div>
 
 <script>
-// 🚀 [필수] 구글 AI Studio에서 발급받은 API 키를 넣어주세요
-const GEMINI_API_KEY = "AIzaSyDD8ZDP4xXHSSgAxks8lc3ZIlsuLQg6po8";
+// 🚀 🚨 진우님! 보안을 위해 키를 지워뒀습니다. 복사하시고 화면에서 꼭 입력해서 사용하세요!
+const GEMINI_API_KEY = "여기에_API_키를_넣어주세요";
 
 let fileContent = "";
 let quizData = [];
 let currentQ = 0;
 let score = 0;
 let answered = false;
+let wrongAnswers = []; // 💡 틀린 문제를 모아둘 배열 추가
 
-// ── 파일 처리 (업로드 피드백 강화) ──
 document.getElementById('fileInput').addEventListener('change', async (e) => {
   const file = e.target.files[0];
   if (!file) return;
   
-  // 파일 읽기 시작 피드백
   document.getElementById('fileName').textContent = `⏳ ${file.name} (글자 추출 중...)`;
   document.getElementById('fileBadge').classList.remove('hidden');
-  document.getElementById('analyzeBtn').disabled = true; // 읽는 동안 버튼 잠금
+  document.getElementById('analyzeBtn').disabled = true;
 
   const reader = new FileReader();
   
@@ -118,19 +136,18 @@ document.getElementById('fileInput').addEventListener('change', async (e) => {
         
         const pdf = await pdfjsLib.getDocument(typedarray).promise;
         let text = "";
-        // 최대 15페이지까지만 추출하여 과부하 방지
         for (let i = 1; i <= Math.min(pdf.numPages, 15); i++) {
           const page = await pdf.getPage(i);
           const content = await page.getTextContent();
-          text += content.items.map(s => s.str).join(" ") + "\n";
+          // 💡 수정됨: AI가 페이지를 인식할 수 있도록 텍스트 중간중간에 [x 페이지] 꼬리표를 달아줍니다.
+          text += `\n--- [${i} 페이지] ---\n` + content.items.map(s => s.str).join(" ") + "\n";
         }
         fileContent = text;
         
-        // 추출 완료 피드백
         document.getElementById('fileName').textContent = `✔ ${file.name} (준비 완료!)`;
         document.getElementById('analyzeBtn').disabled = false;
       } catch (err) {
-        alert("PDF 추출 중 오류가 발생했습니다. 보안이 걸려있지 않은지 확인해주세요.");
+        alert("PDF 추출 중 오류가 발생했습니다.");
         document.getElementById('fileName').textContent = `❌ ${file.name} (추출 실패)`;
       }
     };
@@ -145,46 +162,31 @@ document.getElementById('fileInput').addEventListener('change', async (e) => {
   }
 });
 
-// ── API 호출 함수 수정 ──
 async function askGemini(prompt) {
-  // 화면의 입력창에서 사용자가 적은 키를 그때그때 가져옵니다.
   const keyInput = document.getElementById('apiKeyInput').value.trim();
+  if (!keyInput) throw new Error("상단에 API 키를 먼저 입력해주세요!");
   
-  if (!keyInput) {
-    throw new Error("상단에 API 키를 먼저 입력해주세요!");
-  }
-
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${keyInput}`;
 
-  // ...(이 아래 fetch 통신 부분은 기존 코드와 똑같이 유지하세요)...
   try {
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }]
-      })
+      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
     });
 
     const data = await response.json();
     if (!response.ok) throw new Error(data.error?.message || "연결 실패");
 
     let result = data.candidates[0].content.parts[0].text;
-    
-    // 💡 [핵심 해결책] AI의 답변 중 처음 등장하는 { 또는 [ 부터 마지막 } 또는 ] 까지만 정확히 잘라냅니다.
-    // 이렇게 하면 AI가 앞뒤로 어떤 헛소리나 인사말을 붙여도 무시하고 데이터만 가져올 수 있습니다.
     const jsonMatch = result.match(/[\{\[][\s\S]*[\}\]]/);
-    if (jsonMatch) {
-      return jsonMatch[0]; 
-    }
-
-    // 만약 정규식에 걸리지 않는다면 기본 방식으로 정리해서 보냅니다.
+    if (jsonMatch) return jsonMatch[0]; 
     return result.replace(/```json|```/g, "").trim();
   } catch (err) {
     throw err;
   }
 }
-// ── 학습 조교 분석 로직 ──
+
 async function startAnalysis() {
   const subject = document.getElementById('subjectInput').value || "미지정 과목";
   document.getElementById('uploadSection').classList.add('hidden');
@@ -193,7 +195,6 @@ async function startAnalysis() {
   const prompt = `당신은 간호학 전문 학습 조교입니다. 다음 지침에 따라 업로드된 내용을 분석하세요.
   반드시 다른 설명 없이 아래 JSON 구조로만 응답하세요.
   {"keywords": ["핵심용어(영어병기)"], "lecture": "상세한 강의 내용(정의, 원리, ★국시포인트 포함)"}
-  
   지침: 모든 의학용어는 영어 병기할 것. 대학교 교재 수준의 깊이로 설명할 것.
   과목명: ${subject}
   내용: ${fileContent.substring(0, 10000)}`;
@@ -211,25 +212,37 @@ async function startAnalysis() {
   }
 }
 
-// ── 퀴즈 생성 로직 ──
+// 💡 추가됨: 퀴즈 시작 버튼 누르면 설정한 갯수만큼 문제 생성
+function startQuizGen() {
+  let count = parseInt(document.getElementById('quizCountInput').value);
+  if (count < 10) count = 10;
+  if (count > 50) count = 50;
+  
+  document.getElementById('quizSetup').classList.add('hidden');
+  generateQuiz(count);
+}
+
+// 💡 수정됨: 문항수(count) 반영 및 페이지 출처 요구 프롬프트
 async function generateQuiz(count) {
   document.getElementById('loadingSection').classList.remove('hidden');
   document.getElementById('resultSection').classList.add('hidden');
   
-  const prompt = `간호사 국가고시 출제 위원으로서 5지선다 객관식 문제를 만드세요.
+  const prompt = `간호사 국가고시 출제 위원으로서 주어진 내용을 바탕으로 5지선다 객관식 문제를 정확히 ${count}개 만드세요.
   반드시 다른 설명 없이 아래 JSON 배열 형식으로만 응답하세요.
-  [{"question": "문제(영어병기)", "options": ["1", "2", "3", "4", "5"], "answer": 0, "explanation": "해설"}]
+  내용을 추출할 때 각 텍스트 앞에 표시된 [x 페이지] 정보를 참고하여, 문제와 해설에 출처 페이지를 명시하세요.
+
+  [{"question": "문제내용(영어병기) (출처: x페이지)", "options": ["1", "2", "3", "4", "5"], "answer": 0, "explanation": "[x페이지] 해설내용"}]
   
-  내용: ${fileContent.substring(0, 10000)}`;
+  내용: ${fileContent.substring(0, 15000)}`;
 
   try {
     const res = await askGemini(prompt);
     quizData = JSON.parse(res);
-    currentQ = 0; score = 0;
+    currentQ = 0; score = 0; wrongAnswers = []; // 초기화
     showQuestion();
     document.getElementById('loadingSection').classList.add('hidden');
     document.getElementById('resultSection').classList.remove('hidden');
-    switchTab('quiz');
+    document.getElementById('quizArea').classList.remove('hidden');
   } catch (e) {
     alert("퀴즈 생성 실패: " + e.message);
     location.reload();
@@ -248,20 +261,68 @@ function showQuestion() {
   `;
 }
 
+// 💡 수정됨: 틀린 문제를 오답 노트 배열(wrongAnswers)에 저장하는 로직 추가
 function checkAnswer(idx) {
   if (answered) return;
   answered = true;
   const q = quizData[currentQ];
   const opts = document.querySelectorAll('.option');
-  if (idx === q.answer) { opts[idx].classList.add('correct'); score++; }
-  else { opts[idx].classList.add('wrong'); opts[q.answer].classList.add('correct'); }
+  
+  if (idx === q.answer) { 
+    opts[idx].classList.add('correct'); 
+    score++; 
+  } else { 
+    opts[idx].classList.add('wrong'); 
+    opts[q.answer].classList.add('correct'); 
+    
+    // 오답노트에 저장
+    wrongAnswers.push({
+      question: q.question,
+      options: q.options,
+      userAnswer: idx,
+      correctAnswer: q.answer,
+      explanation: q.explanation
+    });
+  }
   document.getElementById('qExp').classList.remove('hidden');
   document.getElementById('nextBtn').disabled = false;
 }
 
+// 💡 수정됨: 마지막 문제 풀이 후 alert 대신 오답 노트 화면(quizReviewArea) 띄우기
 function nextQuestion() {
-  if (currentQ < quizData.length - 1) { currentQ++; showQuestion(); }
-  else { alert(`테스트 종료! 점수: ${score} / ${quizData.length}`); location.reload(); }
+  if (currentQ < quizData.length - 1) { 
+    currentQ++; 
+    showQuestion(); 
+  } else { 
+    document.getElementById('quizArea').classList.add('hidden');
+    document.getElementById('quizReviewArea').classList.remove('hidden');
+    document.getElementById('finalScore').textContent = `결과: 총 ${quizData.length}문제 중 ${score}문제 정답`;
+
+    let reviewHTML = "";
+    if (wrongAnswers.length === 0) {
+      reviewHTML = `<div style="text-align:center; padding:30px; font-size:1.2rem;">🎉 완벽합니다! 틀린 문제가 하나도 없습니다!</div>`;
+    } else {
+      wrongAnswers.forEach((item, index) => {
+        reviewHTML += `
+          <div style="background:var(--card2); padding:20px; border-radius:12px; margin-bottom:20px; border:1px solid var(--border);">
+            <h4 style="margin-bottom:15px; line-height:1.5;">오답 ${index + 1}. ${item.question}</h4>
+            <div style="margin-bottom:15px;">
+              ${item.options.map((opt, i) => {
+                let style = "color:var(--muted);";
+                if (i === item.correctAnswer) style = "color:var(--success); font-weight:bold;";
+                else if (i === item.userAnswer) style = "color:var(--error); text-decoration:line-through;";
+                return `<div style="${style} margin-bottom:5px;">${i+1}. ${opt}</div>`;
+              }).join('')}
+            </div>
+            <div style="padding:15px; background:#1a2236; border-left:4px solid var(--accent); border-radius:4px;">
+              <strong>[해설]</strong><br>${item.explanation}
+            </div>
+          </div>
+        `;
+      });
+    }
+    document.getElementById('reviewList').innerHTML = reviewHTML;
+  }
 }
 
 function switchTab(t) {
@@ -269,7 +330,7 @@ function switchTab(t) {
   document.getElementById('quizTab').classList.toggle('hidden', t !== 'quiz');
   document.getElementById('tabSummary').classList.toggle('active', t === 'summary');
   document.getElementById('tabQuiz').classList.toggle('active', t === 'quiz');
-  if (t === 'quiz' && quizData.length === 0) generateQuiz(5);
+  // 💡 수정됨: 탭을 누르면 바로 퀴즈가 시작되지 않고, '문항 수 설정' 화면이 나오도록 변경
 }
 </script>
 </body>
