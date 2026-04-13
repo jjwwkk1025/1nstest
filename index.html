@@ -3,23 +3,25 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>StudyAI | 간호학 전문 학습 조교</title>
+<title id="mainTitle">간호학과 조교</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
   body{font-family:'Pretendard','Segoe UI',sans-serif;background:#0f1117;color:#e2e8f0;min-height:100vh;overflow-x:hidden}
   :root{--accent:#6c63ff;--accent2:#a78bfa;--bg:#0f1117;--card:#1a1d27;--card2:#22263a;--border:#2d3148;--text:#e2e8f0;--muted:#8892b0;--success:#10b981;--error:#f87171}
   header{background:#1a1d27;border-bottom:1px solid var(--border);padding:16px 24px;display:flex;align-items:center;gap:12px}
-  .logo{font-size:1.4rem;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  .logo{font-size:1.2rem;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent; transition: all 0.5s ease;}
   .container{max-width:860px;margin:0 auto;padding:32px 16px}
   .section-card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:28px;margin-bottom:24px;animation:fadeIn 0.5s ease}
   .input-group{margin-bottom:20px}
   .input-label{display:block;margin-bottom:8px;font-size:0.9rem;color:var(--accent2);font-weight:600}
-  input[type="text"], input[type="password"]{width:100%;padding:12px;border-radius:10px;border:1px solid var(--border);background:var(--card2);color:white;outline:none}
+  input[type="text"], input[type="password"], input[type="number"]{width:100%;padding:12px;border-radius:10px;border:1px solid var(--border);background:var(--card2);color:white;outline:none}
   .upload-area{border:2px dashed var(--border);border-radius:20px;padding:40px 24px;text-align:center;cursor:pointer;background:var(--card);transition:all 0.3s}
   .upload-area:hover{border-color:var(--accent);background:#1e1b3a}
-  .btn{display:inline-flex;align-items:center;gap:8px;padding:12px 24px;border-radius:12px;border:none;cursor:pointer;font-size:1rem;font-weight:600}
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:12px 24px;border-radius:12px;border:none;cursor:pointer;font-size:1rem;font-weight:600; transition:0.2s}
+  .btn:active{transform:scale(0.98)}
   .btn-primary{background:linear-gradient(135deg,var(--accent),#8b5cf6);color:#fff;width:100%;justify-content:center}
+  .btn-outline{background:transparent; border:1px solid var(--border); color:var(--text); width:100%; justify-content:center; margin-top:12px}
   .btn-primary:disabled{opacity:.4;cursor:not-allowed}
   .tabs{display:flex;gap:8px;background:var(--card);border-radius:14px;padding:6px;margin-bottom:24px}
   .tab{flex:1;padding:12px;border:none;background:transparent;color:var(--muted);border-radius:10px;cursor:pointer;font-weight:600}
@@ -38,13 +40,15 @@
 </head>
 <body>
 
-<header><div class="logo">StudyAI <span>· 간호학 전문 조교 모드</span></div></header>
+<header>
+  <div class="logo" id="siteLogo">간호학과 조교</div>
+</header>
 
 <div class="container">
   <div id="uploadSection">
     <div class="section-card">
       <div class="input-group">
-        <label class="input-label">🔑 구글 API 키 (보안을 위해 직접 입력)</label>
+        <label class="input-label">🔑 구글 API 키 (자동 저장됨)</label>
         <input type="password" id="apiKeyInput" placeholder="여기에 API 키를 붙여넣으세요">
       </div>
       <div class="input-group">
@@ -67,7 +71,7 @@
   </div>
 
   <div id="loadingSection" class="hidden">
-    <div class="loader"><div class="spinner"></div><p style="color:var(--accent2); font-weight:600">조교가 자료를 심층 분석하고 있습니다...</p></div>
+    <div class="loader"><div class="spinner"></div><p style="color:var(--accent2); font-weight:600">조교가 자료를 분석하고 있습니다...</p></div>
   </div>
 
   <div id="resultSection" class="hidden">
@@ -85,7 +89,7 @@
         <h2 style="margin-bottom:20px; color:var(--accent2);">🧠 맞춤형 퀴즈 설정</h2>
         <div style="margin-bottom:30px;">
           <label style="font-size:1.1rem; font-weight:600;">출제할 문항 수 (10~50개) : </label>
-          <input type="number" id="quizCountInput" min="10" max="50" value="10" style="width:80px; padding:10px; border-radius:8px; border:1px solid var(--border); background:var(--card2); color:white; text-align:center; font-size:1.1rem; outline:none; margin-left:10px;">
+          <input type="number" id="quizCountInput" min="10" max="50" value="10" style="width:100px; text-align:center; font-size:1.1rem;">
         </div>
         <button class="btn btn-primary" onclick="startQuizGen()" style="padding:15px; font-size:1.1rem;">🚀 퀴즈 생성 시작</button>
       </div>
@@ -96,66 +100,69 @@
         <button class="btn btn-primary" id="nextBtn" onclick="nextQuestion()" disabled>다음 문제로</button>
       </div>
 
-      <div id="quizReviewArea" class="hidden section-card">
-        <h2 style="text-align:center; color:var(--accent2); margin-bottom:10px;">📝 오답 노트 확인</h2>
-        <h3 id="finalScore" style="text-align:center; margin-bottom:30px; color:var(--muted);"></h3>
-        <div id="reviewList"></div>
-        <button class="btn btn-primary" onclick="location.reload()" style="margin-top:20px;">🔄 처음부터 다시 학습하기</button>
+      <div id="quizReviewArea" class="hidden">
+        <div class="section-card">
+            <h2 style="text-align:center; color:var(--accent2); margin-bottom:10px;">📝 오답 노트 확인</h2>
+            <h3 id="finalScore" style="text-align:center; margin-bottom:30px; color:var(--muted);"></h3>
+            <div id="reviewList"></div>
+        </div>
+        <div style="margin-bottom:40px;">
+            <button class="btn btn-primary" onclick="resetQuizSetup()" style="padding:15px; font-size:1.1rem;">✍ 문제를 더 풀고 싶어요</button>
+            <button class="btn btn-outline" onclick="location.reload()">🏠 처음 창으로 돌아가기 (파일 재업로드)</button>
+        </div>
       </div>
     </div>
   </div>
 </div>
 
 <script>
-// 🚀 🚨 진우님! 보안을 위해 키를 지워뒀습니다. 복사하시고 화면에서 꼭 입력해서 사용하세요!
-const GEMINI_API_KEY = "여기에_API_키를_넣어주세요";
-
 let fileContent = "";
 let quizData = [];
 let currentQ = 0;
 let score = 0;
 let answered = false;
-let wrongAnswers = []; // 💡 틀린 문제를 모아둘 배열 추가
+let wrongAnswers = [];
+
+window.onload = function() {
+  const savedKey = localStorage.getItem('study_ai_api_key');
+  if (savedKey) {
+    document.getElementById('apiKeyInput').value = savedKey;
+  }
+};
 
 document.getElementById('fileInput').addEventListener('change', async (e) => {
   const file = e.target.files[0];
   if (!file) return;
-  
   document.getElementById('fileName').textContent = `⏳ ${file.name} (글자 추출 중...)`;
   document.getElementById('fileBadge').classList.remove('hidden');
   document.getElementById('analyzeBtn').disabled = true;
 
   const reader = new FileReader();
-  
   if (file.type === "application/pdf") {
     reader.onload = async function() {
       try {
         const typedarray = new Uint8Array(this.result);
         const pdfjsLib = window['pdfjs-dist/build/pdf'];
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
-        
         const pdf = await pdfjsLib.getDocument(typedarray).promise;
         let text = "";
         for (let i = 1; i <= Math.min(pdf.numPages, 15); i++) {
           const page = await pdf.getPage(i);
           const content = await page.getTextContent();
-          // 💡 수정됨: AI가 페이지를 인식할 수 있도록 텍스트 중간중간에 [x 페이지] 꼬리표를 달아줍니다.
           text += `\n--- [${i} 페이지] ---\n` + content.items.map(s => s.str).join(" ") + "\n";
         }
         fileContent = text;
-        
         document.getElementById('fileName').textContent = `✔ ${file.name} (준비 완료!)`;
         document.getElementById('analyzeBtn').disabled = false;
       } catch (err) {
-        alert("PDF 추출 중 오류가 발생했습니다.");
-        document.getElementById('fileName').textContent = `❌ ${file.name} (추출 실패)`;
+        alert("PDF 추출 실패");
       }
     };
     reader.readAsArrayBuffer(file);
   } else {
     reader.onload = function() { 
       fileContent = this.result; 
-      document.getElementById('fileName').textContent = `✔ ${file.name} (준비 완료!)`;
+      document.getElementById('fileName').textContent = `✔ ${file.name}`;
       document.getElementById('analyzeBtn').disabled = false;
     };
     reader.readAsText(file);
@@ -164,9 +171,10 @@ document.getElementById('fileInput').addEventListener('change', async (e) => {
 
 async function askGemini(prompt) {
   const keyInput = document.getElementById('apiKeyInput').value.trim();
-  if (!keyInput) throw new Error("상단에 API 키를 먼저 입력해주세요!");
-  
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${keyInput}`;
+  if (!keyInput) throw new Error("API 키를 먼저 입력해주세요!");
+  localStorage.setItem('study_ai_api_key', keyInput);
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key=${keyInput}`;
 
   try {
     const response = await fetch(url, {
@@ -174,31 +182,28 @@ async function askGemini(prompt) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
     });
-
     const data = await response.json();
     if (!response.ok) throw new Error(data.error?.message || "연결 실패");
-
     let result = data.candidates[0].content.parts[0].text;
     const jsonMatch = result.match(/[\{\[][\s\S]*[\}\]]/);
-    if (jsonMatch) return jsonMatch[0]; 
-    return result.replace(/```json|```/g, "").trim();
-  } catch (err) {
-    throw err;
-  }
+    return jsonMatch ? jsonMatch[0] : result.replace(/```json|```/g, "").trim();
+  } catch (err) { throw err; }
 }
 
 async function startAnalysis() {
   const subject = document.getElementById('subjectInput').value || "미지정 과목";
+  
+  // 💡 [핵심] 학습 시작 버튼 클릭 시 로고 텍스트를 변경합니다
+  document.getElementById('siteLogo').textContent = "귀요미 진서>.<를 위한 시험준비 도구";
+  
+  // 💡 브라우저 탭 이름은 그대로 유지
+  document.title = "간호학과 조교";
+  
   document.getElementById('uploadSection').classList.add('hidden');
   document.getElementById('loadingSection').classList.remove('hidden');
   
-  const prompt = `당신은 간호학 전문 학습 조교입니다. 다음 지침에 따라 업로드된 내용을 분석하세요.
-  반드시 다른 설명 없이 아래 JSON 구조로만 응답하세요.
-  {"keywords": ["핵심용어(영어병기)"], "lecture": "상세한 강의 내용(정의, 원리, ★국시포인트 포함)"}
-  지침: 모든 의학용어는 영어 병기할 것. 대학교 교재 수준의 깊이로 설명할 것.
-  과목명: ${subject}
-  내용: ${fileContent.substring(0, 10000)}`;
-
+  const prompt = `간호학 조교로서 업로드 내용을 분석해 JSON으로 답하세요. 모든 용어 영어 병기 필수. {"keywords": [], "lecture": ""} 과목: ${subject} 내용: ${fileContent.substring(0, 10000)}`;
+  
   try {
     const res = await askGemini(prompt);
     const data = JSON.parse(res);
@@ -206,119 +211,81 @@ async function startAnalysis() {
     document.getElementById('lectureContent').innerHTML = data.lecture.replace(/\n/g, '<br>');
     document.getElementById('loadingSection').classList.add('hidden');
     document.getElementById('resultSection').classList.remove('hidden');
-  } catch (e) {
-    alert("분석 실패: " + e.message);
-    location.reload();
-  }
+  } catch (e) { alert("분석 실패: " + e.message); location.reload(); }
 }
 
-// 💡 추가됨: 퀴즈 시작 버튼 누르면 설정한 갯수만큼 문제 생성
 function startQuizGen() {
   let count = parseInt(document.getElementById('quizCountInput').value);
-  if (count < 10) count = 10;
-  if (count > 50) count = 50;
-  
+  if (count < 10) count = 10; if (count > 50) count = 50;
   document.getElementById('quizSetup').classList.add('hidden');
   generateQuiz(count);
 }
 
-// 💡 수정됨: 문항수(count) 반영 및 페이지 출처 요구 프롬프트
+function resetQuizSetup() {
+    document.getElementById('quizReviewArea').classList.add('hidden');
+    document.getElementById('quizSetup').classList.remove('hidden');
+    window.scrollTo(0, 0);
+}
+
 async function generateQuiz(count) {
   document.getElementById('loadingSection').classList.remove('hidden');
   document.getElementById('resultSection').classList.add('hidden');
-  
-  const prompt = `간호사 국가고시 출제 위원으로서 주어진 내용을 바탕으로 5지선다 객관식 문제를 정확히 ${count}개 만드세요.
-  반드시 다른 설명 없이 아래 JSON 배열 형식으로만 응답하세요.
-  내용을 추출할 때 각 텍스트 앞에 표시된 [x 페이지] 정보를 참고하여, 문제와 해설에 출처 페이지를 명시하세요.
-
-  [{"question": "문제내용(영어병기) (출처: x페이지)", "options": ["1", "2", "3", "4", "5"], "answer": 0, "explanation": "[x페이지] 해설내용"}]
-  
-  내용: ${fileContent.substring(0, 15000)}`;
-
+  const prompt = `간호사 국가고시 스타일 5지선다 문제 ${count}개를 JSON 배열로 만드세요. 문제와 해설에 출처 페이지를 [x페이지] 형태로 포함하세요. [{"question": "문제(영어병기) (출처: x페이지)", "options": [], "answer": 0, "explanation": "[x페이지] 해설"}] 내용: ${fileContent.substring(0, 15000)}`;
   try {
     const res = await askGemini(prompt);
     quizData = JSON.parse(res);
-    currentQ = 0; score = 0; wrongAnswers = []; // 초기화
+    currentQ = 0; score = 0; wrongAnswers = [];
     showQuestion();
     document.getElementById('loadingSection').classList.add('hidden');
     document.getElementById('resultSection').classList.remove('hidden');
     document.getElementById('quizArea').classList.remove('hidden');
-  } catch (e) {
-    alert("퀴즈 생성 실패: " + e.message);
-    location.reload();
-  }
+  } catch (e) { alert("퀴즈 생성 실패"); location.reload(); }
 }
 
 function showQuestion() {
   answered = false;
   const q = quizData[currentQ];
   document.getElementById('nextBtn').disabled = true;
-  document.getElementById('quizProgress').textContent = `국시 대비 테스트: ${currentQ + 1} / ${quizData.length}`;
+  document.getElementById('quizProgress').textContent = `테스트 진행중: ${currentQ + 1} / ${quizData.length}`;
   document.getElementById('questionCard').innerHTML = `
     <h3 style="line-height:1.6; margin-bottom:20px;">${q.question}</h3>
-    <div>${q.options.map((o, i) => `<div class="option" onclick="checkAnswer(${i})"><span style="font-weight:700;">(${i+1})</span> ${o}</div>`).join('')}</div>
+    <div>${q.options.map((o, i) => `<div class="option" onclick="checkAnswer(${i})">(${i+1}) ${o}</div>`).join('')}</div>
     <div id="qExp" class="hidden" style="margin-top:15px; padding:15px; background:#1a2236; border-left:4px solid var(--accent)">💡 ${q.explanation}</div>
   `;
 }
 
-// 💡 수정됨: 틀린 문제를 오답 노트 배열(wrongAnswers)에 저장하는 로직 추가
 function checkAnswer(idx) {
   if (answered) return;
   answered = true;
   const q = quizData[currentQ];
   const opts = document.querySelectorAll('.option');
-  
-  if (idx === q.answer) { 
-    opts[idx].classList.add('correct'); 
-    score++; 
-  } else { 
-    opts[idx].classList.add('wrong'); 
-    opts[q.answer].classList.add('correct'); 
-    
-    // 오답노트에 저장
-    wrongAnswers.push({
-      question: q.question,
-      options: q.options,
-      userAnswer: idx,
-      correctAnswer: q.answer,
-      explanation: q.explanation
-    });
+  if (idx === q.answer) { opts[idx].classList.add('correct'); score++; }
+  else { 
+    opts[idx].classList.add('wrong'); opts[q.answer].classList.add('correct');
+    wrongAnswers.push({ question: q.question, options: q.options, userAnswer: idx, correctAnswer: q.answer, explanation: q.explanation });
   }
   document.getElementById('qExp').classList.remove('hidden');
   document.getElementById('nextBtn').disabled = false;
 }
 
-// 💡 수정됨: 마지막 문제 풀이 후 alert 대신 오답 노트 화면(quizReviewArea) 띄우기
 function nextQuestion() {
-  if (currentQ < quizData.length - 1) { 
-    currentQ++; 
-    showQuestion(); 
-  } else { 
+  if (currentQ < quizData.length - 1) { currentQ++; showQuestion(); }
+  else {
     document.getElementById('quizArea').classList.add('hidden');
     document.getElementById('quizReviewArea').classList.remove('hidden');
     document.getElementById('finalScore').textContent = `결과: 총 ${quizData.length}문제 중 ${score}문제 정답`;
-
     let reviewHTML = "";
-    if (wrongAnswers.length === 0) {
-      reviewHTML = `<div style="text-align:center; padding:30px; font-size:1.2rem;">🎉 완벽합니다! 틀린 문제가 하나도 없습니다!</div>`;
-    } else {
+    if (wrongAnswers.length === 0) reviewHTML = `<div style="text-align:center; padding:30px; font-size:1.1rem">🎉 만점입니다! 정말 훌륭해요!</div>`;
+    else {
       wrongAnswers.forEach((item, index) => {
-        reviewHTML += `
-          <div style="background:var(--card2); padding:20px; border-radius:12px; margin-bottom:20px; border:1px solid var(--border);">
-            <h4 style="margin-bottom:15px; line-height:1.5;">오답 ${index + 1}. ${item.question}</h4>
-            <div style="margin-bottom:15px;">
-              ${item.options.map((opt, i) => {
-                let style = "color:var(--muted);";
-                if (i === item.correctAnswer) style = "color:var(--success); font-weight:bold;";
-                else if (i === item.userAnswer) style = "color:var(--error); text-decoration:line-through;";
-                return `<div style="${style} margin-bottom:5px;">${i+1}. ${opt}</div>`;
-              }).join('')}
-            </div>
-            <div style="padding:15px; background:#1a2236; border-left:4px solid var(--accent); border-radius:4px;">
-              <strong>[해설]</strong><br>${item.explanation}
-            </div>
-          </div>
-        `;
+        reviewHTML += `<div style="background:var(--card2); padding:20px; border-radius:12px; margin-bottom:20px; border:1px solid var(--border);">
+          <h4 style="margin-bottom:15px;">오답 ${index + 1}. ${item.question}</h4>
+          <div style="margin-bottom:15px;">${item.options.map((opt, i) => {
+            let style = (i === item.correctAnswer) ? "color:var(--success); font-weight:bold;" : (i === item.userAnswer ? "color:var(--error); text-decoration:line-through;" : "color:var(--muted);");
+            return `<div style="${style}">${i+1}. ${opt}</div>`;
+          }).join('')}</div>
+          <div style="padding:15px; background:#1a2236; border-left:4px solid var(--accent);"><strong>[해설]</strong><br>${item.explanation}</div>
+        </div>`;
       });
     }
     document.getElementById('reviewList').innerHTML = reviewHTML;
@@ -330,7 +297,6 @@ function switchTab(t) {
   document.getElementById('quizTab').classList.toggle('hidden', t !== 'quiz');
   document.getElementById('tabSummary').classList.toggle('active', t === 'summary');
   document.getElementById('tabQuiz').classList.toggle('active', t === 'quiz');
-  // 💡 수정됨: 탭을 누르면 바로 퀴즈가 시작되지 않고, '문항 수 설정' 화면이 나오도록 변경
 }
 </script>
 </body>
