@@ -48,8 +48,8 @@
   <div id="uploadSection">
     <div class="section-card">
       <div class="input-group">
-        <label class="input-label">🔑 구글 API 키 (자동 저장됨)</label>
-        <input type="password" id="apiKeyInput" placeholder="여기에 API 키를 붙여넣으세요">
+        <label class="input-label">🔑 Groq API 키 (자동 저장됨)</label>
+        <input type="password" id="apiKeyInput" placeholder="여기에 Groq API 키를 붙여넣으세요">
       </div>
       <div class="input-group">
         <label class="input-label">📌 과목명 및 시험 범위</label>
@@ -169,22 +169,43 @@ document.getElementById('fileInput').addEventListener('change', async (e) => {
   }
 });
 
-async function askGemini(prompt) {
+// 💡 [변경됨] askGemini 함수를 askGroq 함수로 변경했습니다.
+async function askGroq(prompt) {
   const keyInput = document.getElementById('apiKeyInput').value.trim();
   if (!keyInput) throw new Error("API 키를 먼저 입력해주세요!");
   localStorage.setItem('study_ai_api_key', keyInput);
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key=${keyInput}`;
+  const url = `https://api.groq.com/openai/v1/chat/completions`;
 
   try {
     const response = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+      headers: { 
+        'Authorization': `Bearer ${keyInput}`,
+        'Content-Type': 'application/json' 
+      },
+      body: JSON.stringify({
+        model: "llama3-70b-8192", // JSON 구조를 가장 잘 유지하는 고성능 모델
+        messages: [
+          {
+            role: "system",
+            content: "You are a helpful nursing assistant. You must respond ONLY with valid JSON. Do not include any introductory or concluding text."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        temperature: 0.2 // 정형화된 JSON 생성을 위해 온도를 낮춤
+      })
     });
+    
     const data = await response.json();
     if (!response.ok) throw new Error(data.error?.message || "연결 실패");
-    let result = data.candidates[0].content.parts[0].text;
+    
+    let result = data.choices[0].message.content;
+    
+    // AI가 마크다운(```json)을 붙여서 보낼 경우를 대비한 추출 로직 (기존과 동일)
     const jsonMatch = result.match(/[\{\[][\s\S]*[\}\]]/);
     return jsonMatch ? jsonMatch[0] : result.replace(/```json|```/g, "").trim();
   } catch (err) { throw err; }
@@ -193,10 +214,7 @@ async function askGemini(prompt) {
 async function startAnalysis() {
   const subject = document.getElementById('subjectInput').value || "미지정 과목";
   
-  // 💡 [핵심] 학습 시작 버튼 클릭 시 로고 텍스트를 변경합니다
   document.getElementById('siteLogo').textContent = "귀요미 진서>.<를 위한 시험준비 도구";
-  
-  // 💡 브라우저 탭 이름은 그대로 유지
   document.title = "간호학과 조교";
   
   document.getElementById('uploadSection').classList.add('hidden');
@@ -205,7 +223,8 @@ async function startAnalysis() {
   const prompt = `간호학 조교로서 업로드 내용을 분석해 JSON으로 답하세요. 모든 용어 영어 병기 필수. {"keywords": [], "lecture": ""} 과목: ${subject} 내용: ${fileContent.substring(0, 10000)}`;
   
   try {
-    const res = await askGemini(prompt);
+    // 💡 [변경됨] askGemini 대신 askGroq 호출
+    const res = await askGroq(prompt);
     const data = JSON.parse(res);
     document.getElementById('keywords').innerHTML = data.keywords.map(k => `<span class="keyword-chip">${k}</span>`).join('');
     document.getElementById('lectureContent').innerHTML = data.lecture.replace(/\n/g, '<br>');
@@ -232,14 +251,15 @@ async function generateQuiz(count) {
   document.getElementById('resultSection').classList.add('hidden');
   const prompt = `간호사 국가고시 스타일 5지선다 문제 ${count}개를 JSON 배열로 만드세요. 문제와 해설에 출처 페이지를 [x페이지] 형태로 포함하세요. [{"question": "문제(영어병기) (출처: x페이지)", "options": [], "answer": 0, "explanation": "[x페이지] 해설"}] 내용: ${fileContent.substring(0, 15000)}`;
   try {
-    const res = await askGemini(prompt);
+    // 💡 [변경됨] askGemini 대신 askGroq 호출
+    const res = await askGroq(prompt);
     quizData = JSON.parse(res);
     currentQ = 0; score = 0; wrongAnswers = [];
     showQuestion();
     document.getElementById('loadingSection').classList.add('hidden');
     document.getElementById('resultSection').classList.remove('hidden');
     document.getElementById('quizArea').classList.remove('hidden');
-  } catch (e) { alert("퀴즈 생성 실패"); location.reload(); }
+  } catch (e) { alert("퀴즈 생성 실패: JSON 형식이 어긋났을 수 있습니다. 다시 시도해주세요."); location.reload(); }
 }
 
 function showQuestion() {
