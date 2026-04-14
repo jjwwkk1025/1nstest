@@ -174,49 +174,188 @@ document.getElementById('fileInput').addEventListener('change', async (e) => {
   }
 });
 
-// ✅ 핵심 수정 1: JSON 파싱을 여러 단계로 안전하게 처리
+// ✅ 강화된 JSON 파싱 함수
 function safeParseJSON(raw) {
+  // 0단계: 빈 값 체크
+  if (!raw || typeof raw !== 'string') {
+    throw new Error("응답이 비어있거나 문자열이 아닙니다.");
+  }
+
+  const trimmed = raw.trim();
+
   // 1단계: 그대로 파싱 시도
-  try { return JSON.parse(raw); } catch(e) {}
+  try { 
+    return JSON.parse(trimmed); 
+  } catch(e) {
+    console.log("1단계 실패:", e.message);
+  }
 
-  // 2단계: ```json ... ``` 코드블록 제거 후 파싱
-  const stripped = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
-  try { return JSON.parse(stripped); } catch(e) {}
+  // 2단계: 일반적인 마크다운 코드블록 제거
+  const patterns = [
+    /```json\s*([\s\S]*?)```/gi,
+    /```\s*([\s\S]*?)```/gi,
+    /^```[\s\S]*?\n([\s\S]*?)\n```$/gm
+  ];
 
-  // 3단계: 첫 번째 { 부터 마지막 } 까지 추출
+  for (let pattern of patterns) {
+    const match = trimmed.match(pattern);
+    if (match && match[1]) {
+      try { 
+        return JSON.parse(match[1].trim()); 
+      } catch(e) {}
+    }
+  }
+
+  // 3단계: 모든 마크다운 제거 후 파싱
+  const stripped = trimmed
+    .replace(/```json\s*/gi, '')
+    .replace(/```\s*/g, '')
+    .replace(/^#+\s*.*/gm, '')
+    .trim();
+
+  try { 
+    return JSON.parse(stripped); 
+  } catch(e) {
+    console.log("3단계 실패:", e.message);
+  }
+
+  // 4단계: JSON 객체 추출 (첫 { 부터 마지막 })
   const objMatch = stripped.match(/\{[\s\S]*\}/);
-  if (objMatch) { try { return JSON.parse(objMatch[0]); } catch(e) {} }
+  if (objMatch) {
+    try { 
+      return JSON.parse(objMatch[0]); 
+    } catch(e) {
+      console.log("4단계 실패:", e.message);
+    }
+  }
 
-  // 4단계: 배열 형태로도 시도
+  // 5단계: JSON 배열 추출
   const arrMatch = stripped.match(/\[[\s\S]*\]/);
-  if (arrMatch) { try { return JSON.parse(arrMatch[0]); } catch(e) {} }
+  if (arrMatch) {
+    try { 
+      return JSON.parse(arrMatch[0]); 
+    } catch(e) {
+      console.log("5단계 실패:", e.message);
+    }
+  }
 
-  throw new Error("JSON 파싱 실패: AI 응답 형식이 올바르지 않습니다.");
+  // 6단계: 수정된 JSON 시도 (작은따옴표를 큰따옴표로 변환)
+  const fixed = stripped.replace(/'/g, '"');
+  try { 
+    return JSON.parse(fixed); 
+  } catch(e) {
+    console.log("6단계 실패:", e.message);
+  }
+
+  // 최후의 수단: 개행/탭 정리
+  const cleaned = stripped
+    .replace(/[\n\r\t]/g, ' ')
+    .replace(/,\s*}/g, '}')
+    .replace(/,\s*]/g, ']');
+  
+  try { 
+    return JSON.parse(cleaned); 
+  } catch(e) {
+    console.log("7단계 실패:", e.message);
+  }
+
+  throw new Error(`JSON 파싱 완전 실패. 응답: "${trimmed.substring(0, 200)}..."`);
 }
 
-async function askGroq(prompt, systemMsg) {
+// ✅ 개선된 Groq API 호출 함수
+async function askGroq(prompt, systemMsg, isJson = true) {
   const key = document.getElementById('apiKeyInput').value.trim();
   if (!key) throw new Error("API 키를 입력해주세요!");
   localStorage.setItem('study_ai_api_key', key);
 
-  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: "llama-3.3-70b-versatile",
-      messages: [
-        { role: "system", content: systemMsg || "You are a helpful nursing exam assistant. Always respond with valid JSON only. No markdown, no explanation outside JSON." },
-        { role: "user", content: prompt }
-      ],
-      temperature: 0.1,       // ✅ 핵심 수정 2: 온도 낮춰서 JSON 일관성 향상
-      max_tokens: 8000,       // ✅ 핵심 수정 3: 토큰 늘려서 중간에 끊기지 않도록
-      response_format: { type: "json_object" }
-    })
-  });
+  const payload = {
+    model: "llama-3.3-70b-versatile",
+    messages: [
+      { 
+        role: "system", 
+        content: systemMsg || "You are a helpful nursing exam assistant. Always respond with valid JSON only. No markdown, no explanation outside JSON." 
+      },
+      { role: "user", content: prompt }
+    ],
+    temperature: 0.1,
+    max_tokens: 8000,
+  };
 
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error?.message || "API 요청 실패");
-  return data.choices[0].message.content;
+  if (isJson) {
+    payload.response_format = { type: "json_object" };
+  }
+
+  try {
+    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: 'POST',
+      headers: { 
+        'Authorization': `Bearer ${key}`, 
+        'Content-Type': 'application/json' 
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json();
+    
+    if (!res.ok) {
+      const errorMsg = data.error?.message || "API 요청 실패";
+      throw new Error(`[${res.status}] ${errorMsg}`);
+    }
+
+    const content = data.choices[0]?.message?.content;
+    if (!content) {
+      throw new Error("API로부터 빈 응답을 받았습니다.");
+    }
+
+    console.log("API 응답 (처음 300자):", content.substring(0, 300));
+    return content;
+
+  } catch (error) {
+    throw new Error(`API 호출 실패: ${error.message}`);
+  }
+}
+
+// ✅ 데이터 유효성 검사 함수
+function validateQuizData(questions) {
+  if (!Array.isArray(questions)) {
+    throw new Error("questions이 배열이 아닙니다.");
+  }
+
+  if (questions.length === 0) {
+    throw new Error("생성된 문제가 0개입니다.");
+  }
+
+  const validated = questions
+    .filter(q => {
+      const hasQuestion = q.question && String(q.question).trim().length > 0;
+      const hasOptions = Array.isArray(q.options) && q.options.length >= 2;
+      const hasAnswer = typeof q.answer !== 'undefined' && q.answer !== null;
+      
+      if (!hasQuestion || !hasOptions || !hasAnswer) {
+        console.warn("필터링된 문제:", q);
+        return false;
+      }
+      return true;
+    })
+    .map(q => {
+      const answer = parseInt(q.answer);
+      if (isNaN(answer) || answer < 0 || answer >= q.options.length) {
+        console.warn(`잘못된 answer 인덱스 교정: ${answer} → 0`);
+        return { ...q, answer: 0 };
+      }
+      return {
+        question: String(q.question).trim(),
+        options: q.options.map(o => String(o).trim()).slice(0, 5),
+        answer: answer,
+        explanation: String(q.explanation || "해설 없음").trim()
+      };
+    });
+
+  if (validated.length === 0) {
+    throw new Error("유효한 문제가 0개입니다. (모두 필터링됨)");
+  }
+
+  return validated;
 }
 
 async function startAnalysis() {
@@ -268,16 +407,18 @@ async function generateQuiz(count) {
   document.getElementById('resultSection').classList.add('hidden');
   document.getElementById('loadingMsg').textContent = `${count}개 문제를 생성하고 있습니다...`;
 
-  // ✅ 핵심 수정 4: 프롬프트를 매우 엄격하고 단순하게 변경 + 예시 포함
-  const systemMsg = `You are a Korean nursing exam question generator. You MUST respond with ONLY valid JSON. No text before or after. No markdown code blocks. The JSON must follow this exact structure: {"questions": [{"question": "문제내용", "options": ["보기1","보기2","보기3","보기4","보기5"], "answer": 0, "explanation": "해설내용"}]}. The "answer" field is a zero-based index (0~4).`;
+  const systemMsg = `You are a Korean nursing exam question generator. You MUST respond ONLY with valid JSON in this exact format:
+{"questions": [{"question": "문제1", "options": ["선택지1", "선택지2", "선택지3", "선택지4", "선택지5"], "answer": 0, "explanation": "설명"}]}
+Do NOT include any text before or after JSON. Do NOT use markdown code blocks.`;
 
-  const prompt = `다음 간호학 강의 내용을 바탕으로, 간호사 국가고시 스타일의 5지선다 문제를 정확히 ${count}개 생성하세요.
+  const prompt = `간호학 문제를 ${count}개 생성하세요.
 
 규칙:
-- 각 문제는 question, options(5개), answer(0~4 인덱스), explanation 필드를 가져야 합니다.
-- answer는 options 배열의 정답 인덱스(숫자)입니다.
-- 모든 텍스트는 한국어로 작성하세요.
-- JSON 외의 텍스트는 절대 포함하지 마세요.
+- JSON만 응답 (다른 텍스트 금지)
+- question: 문제 내용
+- options: 5개 선택지 배열
+- answer: 0~4 숫자 (정답 인덱스)
+- explanation: 해설
 
 강의 내용:
 ${fileContent.substring(0, 12000)}`;
@@ -288,51 +429,39 @@ ${fileContent.substring(0, 12000)}`;
   while (attempts < maxAttempts) {
     attempts++;
     try {
-      const raw = await askGroq(prompt, systemMsg);
+      const raw = await askGroq(prompt, systemMsg, true);
       const parsed = safeParseJSON(raw);
 
-      // ✅ 핵심 수정 5: questions 배열 추출 및 유효성 검사
       let questions = parsed.questions || parsed;
       if (!Array.isArray(questions)) {
-        // 객체 안에 배열이 있을 경우 탐색
-        const keys = Object.keys(parsed);
-        for (const k of keys) {
-          if (Array.isArray(parsed[k])) { questions = parsed[k]; break; }
-        }
+        const values = Object.values(parsed);
+        questions = values.find(v => Array.isArray(v)) || [];
       }
 
-      if (!Array.isArray(questions) || questions.length === 0) {
-        throw new Error("questions 배열을 찾을 수 없습니다.");
-      }
+      quizData = validateQuizData(questions);
 
-      // ✅ 핵심 수정 6: 각 문제 유효성 검사 및 자동 복구
-      quizData = questions.filter(q => {
-        return q.question && Array.isArray(q.options) && q.options.length >= 2 && typeof q.answer !== 'undefined';
-      }).map(q => ({
-        question: String(q.question),
-        options: q.options.slice(0, 5).map(String),
-        answer: Math.min(parseInt(q.answer) || 0, (q.options.length - 1)),
-        explanation: String(q.explanation || "해설 없음")
-      }));
-
-      if (quizData.length === 0) throw new Error("유효한 문제가 없습니다.");
-
-      currentQ = 0; score = 0; wrongAnswers = [];
+      currentQ = 0;
+      score = 0;
+      wrongAnswers = [];
+      
       document.getElementById('loadingSection').classList.add('hidden');
       document.getElementById('resultSection').classList.remove('hidden');
       document.getElementById('quizArea').classList.remove('hidden');
       showQuestion();
-      return; // 성공 시 루프 종료
+      return;
 
     } catch (e) {
-      console.warn(`퀴즈 생성 시도 ${attempts}/${maxAttempts} 실패:`, e.message);
+      console.error(`시도 ${attempts}/${maxAttempts} 실패:`, e.message);
       if (attempts >= maxAttempts) {
         document.getElementById('loadingSection').classList.add('hidden');
         document.getElementById('resultSection').classList.remove('hidden');
         document.getElementById('quizSetup').classList.remove('hidden');
         const errBox = document.getElementById('quizErrorBox');
         errBox.style.display = 'block';
-        errBox.textContent = `❌ ${maxAttempts}번 시도했지만 실패했습니다. 문항 수를 줄이거나 다시 시도해보세요. (오류: ${e.message})`;
+        errBox.innerHTML = `❌ 문제 생성 실패 (${maxAttempts}회 시도)<br>
+        - 문항 수를 줄이거나 다시 시도하세요<br>
+        - API 키가 유효한지 확인하세요<br>
+        - 오류: ${e.message}`;
       }
     }
   }
