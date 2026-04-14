@@ -2,64 +2,75 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>AI 시험 공부 도우미</title>
+    <title>AI PDF 시험 도우미</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Gemini SDK 로드 -->
     <script type="importmap">
       { "imports": { "@google/generative-ai": "https://esm.run/@google/generative-ai" } }
     </script>
 </head>
 <body class="p-5 bg-gray-100">
     <div class="max-w-3xl mx-auto bg-white p-6 rounded shadow">
-        <h1 class="text-2xl font-bold mb-4">AI 시험 공부 도우미</h1>
+        <h1 class="text-2xl font-bold mb-4">AI PDF 학습 도우미</h1>
         
         <input type="password" id="apiKey" placeholder="Gemini API Key 입력" class="w-full p-2 border mb-4 rounded">
         
         <div class="mb-4">
-            <label class="block mb-2">문제 수: <span id="qCountVal">10</span>개</label>
-            <input type="range" id="qCount" min="10" max="20" value="10" class="w-full" oninput="document.getElementById('qCountVal').innerText=this.value">
+            <label class="block mb-2 font-bold">1. PDF 파일 업로드</label>
+            <input type="file" id="pdfInput" accept="application/pdf" class="w-full p-2 border rounded">
         </div>
 
-        <textarea id="textContent" class="w-full h-64 p-2 border mb-4 rounded" placeholder="PDF에서 복사한 텍스트를 붙여넣으세요. (내용에 페이지 번호가 포함되어 있으면 더 정확합니다)"></textarea>
+        <div class="mb-4">
+            <label class="block mb-2 font-bold">2. 문제 수: <span id="qCountVal">10</span>개</label>
+            <input type="range" id="qCount" min="10" max="20" value="10" class="w-full" oninput="document.getElementById('qCountVal').innerText=this.value">
+        </div>
         
-        <button onclick="generateQuiz()" id="submitBtn" class="bg-blue-600 text-white w-full py-3 rounded font-bold hover:bg-blue-700">분석 및 퀴즈 생성</button>
+        <button onclick="analyzePDF()" id="submitBtn" class="bg-blue-600 text-white w-full py-3 rounded font-bold hover:bg-blue-700">PDF 분석 및 퀴즈 생성</button>
         
-        <div id="result" class="mt-6 whitespace-pre-line p-4 bg-gray-50 border rounded hidden"></div>
+        <div id="result" class="mt-6 p-4 bg-gray-50 border rounded hidden whitespace-pre-line"></div>
     </div>
 
     <script type="module">
         import { GoogleGenerativeAI } from "@google/generative-ai";
 
-        // 1. API 키 자동 로드/저장
+        // API 키 로드
         const apiKeyInput = document.getElementById('apiKey');
         apiKeyInput.value = localStorage.getItem('gemini_api_key') || '';
         apiKeyInput.addEventListener('input', () => localStorage.setItem('gemini_api_key', apiKeyInput.value));
 
-        window.generateQuiz = async () => {
+        // 파일을 Base64로 변환하는 함수
+        function fileToGenerativePart(file) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve({
+                    inlineData: { data: reader.result.split(",")[1], mimeType: file.type }
+                });
+                reader.readAsDataURL(file);
+            });
+        }
+
+        window.analyzePDF = async () => {
             const apiKey = apiKeyInput.value;
-            const text = document.getElementById('textContent').value;
+            const fileInput = document.getElementById('pdfInput').files[0];
             const count = document.getElementById('qCount').value;
             const resultDiv = document.getElementById('result');
 
-            if (!apiKey || !text) { alert("API키와 학습할 내용을 입력하세요."); return; }
+            if (!apiKey || !fileInput) { alert("API키와 PDF 파일을 모두 선택하세요."); return; }
 
             resultDiv.classList.remove('hidden');
-            resultDiv.innerText = "AI가 퀴즈를 생성 중입니다... (잠시만 기다려주세요)";
-            
-            const genAI = new GoogleGenerativeAI(apiKey);
-            const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
-            const prompt = `
-                당신은 전문 학습 도우미입니다. 아래 내용을 분석하여 ${count}개의 객관식 퀴즈를 만들어주세요.
-                조건:
-                1. 각 퀴즈마다 정답을 표시하고, 상세한 해설을 포함하세요.
-                2. 해설에는 반드시 해당 내용이 참조된 "PDF 페이지 번호"를 명시하세요. (본문에 페이지 정보가 없다면 유추하거나 "참조 불가"로 표시)
-                
-                내용:
-                ${text}
-            `;
+            resultDiv.innerText = "PDF 업로드 및 AI 분석 중... (잠시만 기다려주세요)";
 
             try {
-                const result = await model.generateContent(prompt);
+                const genAI = new GoogleGenerativeAI(apiKey);
+                const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+                const fileData = await fileToGenerativePart(fileInput);
+                const prompt = `이 PDF 파일을 분석하여 ${count}개의 객관식 퀴즈를 만들어주세요.
+                조건:
+                1. 각 퀴즈마다 정답과 상세 해설을 포함하세요.
+                2. 해설에는 반드시 해당 내용이 위치한 "PDF 페이지 번호"를 명시하세요.`;
+
+                const result = await model.generateContent([prompt, fileData]);
                 resultDiv.innerText = result.response.text();
             } catch (error) {
                 resultDiv.innerText = "에러 발생: " + error.message;
