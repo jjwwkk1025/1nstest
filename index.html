@@ -169,7 +169,6 @@ document.getElementById('fileInput').addEventListener('change', async (e) => {
   }
 });
 
-// 💡 [변경됨] askGemini 함수를 askGroq 함수로 변경했습니다.
 async function askGroq(prompt) {
   const keyInput = document.getElementById('apiKeyInput').value.trim();
   if (!keyInput) throw new Error("API 키를 먼저 입력해주세요!");
@@ -184,12 +183,9 @@ async function askGroq(prompt) {
         'Authorization': `Bearer ${keyInput}`,
         'Content-Type': 'application/json' 
       },
-
-   
-        body: JSON.stringify({
-        model: "llama-3.3-70b-versatile", // <- 최신 Llama 3.3 모델로 변경
+      body: JSON.stringify({
+        model: "llama-3.3-70b-versatile",
         messages: [
-
           {
             role: "system",
             content: "You are a helpful nursing assistant. You must respond ONLY with valid JSON. Do not include any introductory or concluding text."
@@ -199,7 +195,9 @@ async function askGroq(prompt) {
             content: prompt
           }
         ],
-        temperature: 0.2 // 정형화된 JSON 생성을 위해 온도를 낮춤
+        temperature: 0.2,
+        max_tokens: 6000, // 문제 생성 중 끊김 방지
+        response_format: { type: "json_object" } // 완벽한 JSON 포맷 강제
       })
     });
     
@@ -208,7 +206,6 @@ async function askGroq(prompt) {
     
     let result = data.choices[0].message.content;
     
-    // AI가 마크다운(```json)을 붙여서 보낼 경우를 대비한 추출 로직 (기존과 동일)
     const jsonMatch = result.match(/[\{\[][\s\S]*[\}\]]/);
     return jsonMatch ? jsonMatch[0] : result.replace(/```json|```/g, "").trim();
   } catch (err) { throw err; }
@@ -226,7 +223,6 @@ async function startAnalysis() {
   const prompt = `간호학 조교로서 업로드 내용을 분석해 JSON으로 답하세요. 모든 용어 영어 병기 필수. {"keywords": [], "lecture": ""} 과목: ${subject} 내용: ${fileContent.substring(0, 10000)}`;
   
   try {
-    // 💡 [변경됨] askGemini 대신 askGroq 호출
     const res = await askGroq(prompt);
     const data = JSON.parse(res);
     document.getElementById('keywords').innerHTML = data.keywords.map(k => `<span class="keyword-chip">${k}</span>`).join('');
@@ -252,11 +248,15 @@ function resetQuizSetup() {
 async function generateQuiz(count) {
   document.getElementById('loadingSection').classList.remove('hidden');
   document.getElementById('resultSection').classList.add('hidden');
-  const prompt = `간호사 국가고시 스타일 5지선다 문제 ${count}개를 JSON 배열로 만드세요. 문제와 해설에 출처 페이지를 [x페이지] 형태로 포함하세요. [{"question": "문제(영어병기) (출처: x페이지)", "options": [], "answer": 0, "explanation": "[x페이지] 해설"}] 내용: ${fileContent.substring(0, 15000)}`;
+  
+  // JSON 객체 형태로 안전하게 받도록 프롬프트 수정
+  const prompt = `간호사 국가고시 스타일 5지선다 문제 ${count}개를 다음 JSON 형식으로 만드세요: {"questions": [{"question": "문제(영어병기) (출처: x페이지)", "options": ["보기1","보기2","보기3","보기4","보기5"], "answer": 0, "explanation": "[x페이지] 해설"}]} 내용: ${fileContent.substring(0, 15000)}`;
+  
   try {
-    // 💡 [변경됨] askGemini 대신 askGroq 호출
     const res = await askGroq(prompt);
-    quizData = JSON.parse(res);
+    const parsedData = JSON.parse(res);
+    // 가장 바깥쪽이 객체이므로 안쪽의 questions 배열만 꺼내옴
+    quizData = parsedData.questions || parsedData; 
     currentQ = 0; score = 0; wrongAnswers = [];
     showQuestion();
     document.getElementById('loadingSection').classList.add('hidden');
