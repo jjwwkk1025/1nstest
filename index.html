@@ -1,81 +1,130 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <title>AI PDF 시험 도우미</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Gemini SDK 로드 -->
-    <script type="importmap">
-      { "imports": { "@google/generative-ai": "https://esm.run/@google/generative-ai" } }
-    </script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StudyAI | 간호학 전문 학습 조교</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+<style>
+  /* 기존 스타일 유지 */
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Pretendard','Segoe UI',sans-serif;background:#0f1117;color:#e2e8f0;min-height:100vh}
+  :root{--accent:#6c63ff;--accent2:#a78bfa;--bg:#0f1117;--card:#1a1d27;--card2:#22263a;--border:#2d3148;--muted:#8892b0;--success:#10b981;--error:#f87171}
+  header{background:#1a1d27;border-bottom:1px solid var(--border);padding:16px 24px}
+  .logo{font-size:1.4rem;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  .container{max-width:860px;margin:0 auto;padding:32px 16px}
+  .section-card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:28px;margin-bottom:24px}
+  .input-group{margin-bottom:20px}
+  .input-label{display:block;margin-bottom:8px;font-size:0.9rem;color:var(--accent2);font-weight:600}
+  input[type="text"], input[type="password"]{width:100%;padding:12px;border-radius:10px;border:1px solid var(--border);background:var(--card2);color:white;outline:none}
+  .upload-area{border:2px dashed var(--border);border-radius:20px;padding:40px 24px;text-align:center;cursor:pointer;transition:all 0.3s}
+  .btn{padding:12px 24px;border-radius:12px;border:none;cursor:pointer;font-weight:600;width:100%}
+  .btn-primary{background:linear-gradient(135deg,var(--accent),#8b5cf6);color:#fff}
+  .hidden{display:none!important}
+</style>
 </head>
-<body class="p-5 bg-gray-100">
-    <div class="max-w-3xl mx-auto bg-white p-6 rounded shadow">
-        <h1 class="text-2xl font-bold mb-4">AI PDF 학습 도우미</h1>
-        
-        <input type="password" id="apiKey" placeholder="Gemini API Key 입력" class="w-full p-2 border mb-4 rounded">
-        
-        <div class="mb-4">
-            <label class="block mb-2 font-bold">1. PDF 파일 업로드</label>
-            <input type="file" id="pdfInput" accept="application/pdf" class="w-full p-2 border rounded">
-        </div>
+<body>
 
-        <div class="mb-4">
-            <label class="block mb-2 font-bold">2. 문제 수: <span id="qCountVal">10</span>개</label>
-            <input type="range" id="qCount" min="10" max="20" value="10" class="w-full" oninput="document.getElementById('qCountVal').innerText=this.value">
-        </div>
-        
-        <button onclick="analyzePDF()" id="submitBtn" class="bg-blue-600 text-white w-full py-3 rounded font-bold hover:bg-blue-700">PDF 분석 및 퀴즈 생성</button>
-        
-        <div id="result" class="mt-6 p-4 bg-gray-50 border rounded hidden whitespace-pre-line"></div>
+<header><div class="logo">StudyAI <span>· 간호학 전문 조교 모드</span></div></header>
+
+<div class="container">
+  <div id="uploadSection" class="section-card">
+    <div class="input-group">
+      <label class="input-label">🔑 구글 API 키</label>
+      <input type="password" id="apiKeyInput" placeholder="API Key 입력">
     </div>
+    <div class="input-group">
+      <label class="input-label">📌 과목명</label>
+      <input type="text" id="subjectInput" placeholder="예: 성인간호학 - 순환기계">
+    </div>
+    <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+      <span>📄 강의 자료(PDF) 업로드</span>
+      <input type="file" id="fileInput" accept=".pdf" style="display:none">
+      <p id="fileName" style="margin-top:10px; color:var(--muted)"></p>
+    </div>
+    <button class="btn btn-primary" id="analyzeBtn" disabled onclick="startAnalysis()" style="margin-top:20px">✨ 학습 시작</button>
+  </div>
 
-    <script type="module">
-        import { GoogleGenerativeAI } from "@google/generative-ai";
+  <div id="loadingSection" class="hidden" style="text-align:center; padding:50px;">
+    <p>AI가 자료를 분석 중입니다...</p>
+  </div>
 
-        // API 키 로드
-        const apiKeyInput = document.getElementById('apiKey');
-        apiKeyInput.value = localStorage.getItem('gemini_api_key') || '';
-        apiKeyInput.addEventListener('input', () => localStorage.setItem('gemini_api_key', apiKeyInput.value));
+  <div id="resultSection" class="hidden">
+    <div id="summaryContent" class="section-card"></div>
+    <div id="quizSection" class="section-card">
+        <label>문제 수: </label>
+        <input type="number" id="quizCount" value="10" min="5" max="20" style="color:black">
+        <button class="btn btn-primary" onclick="generateQuiz()">퀴즈 생성</button>
+        <div id="quizArea" style="margin-top:20px"></div>
+    </div>
+  </div>
+</div>
 
-        // 파일을 Base64로 변환하는 함수
-        function fileToGenerativePart(file) {
-            return new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.onloadend = () => resolve({
-                    inlineData: { data: reader.result.split(",")[1], mimeType: file.type }
-                });
-                reader.readAsDataURL(file);
-            });
-        }
+<script>
+let fileContent = "";
 
-        window.analyzePDF = async () => {
-            const apiKey = apiKeyInput.value;
-            const fileInput = document.getElementById('pdfInput').files[0];
-            const count = document.getElementById('qCount').value;
-            const resultDiv = document.getElementById('result');
+document.getElementById('fileInput').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  const pdfjsLib = window['pdfjs-dist/build/pdf'];
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+  
+  const reader = new FileReader();
+  reader.onload = async function() {
+    const pdf = await pdfjsLib.getDocument({data: new Uint8Array(this.result)}).promise;
+    let text = "";
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      text += `\n[페이지 ${i}]\n` + content.items.map(s => s.str).join(" ");
+    }
+    fileContent = text;
+    document.getElementById('fileName').textContent = file.name;
+    document.getElementById('analyzeBtn').disabled = false;
+  };
+  reader.readAsArrayBuffer(file);
+});
 
-            if (!apiKey || !fileInput) { alert("API키와 PDF 파일을 모두 선택하세요."); return; }
+async function callGemini(prompt) {
+  const key = document.getElementById('apiKeyInput').value;
+  // 모델명 변경: gemini-1.5-flash
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`;
+  
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+  });
+  const data = await response.json();
+  return data.candidates[0].content.parts[0].text;
+}
 
-            resultDiv.classList.remove('hidden');
-            resultDiv.innerText = "PDF 업로드 및 AI 분석 중... (잠시만 기다려주세요)";
+async function startAnalysis() {
+  document.getElementById('uploadSection').classList.add('hidden');
+  document.getElementById('loadingSection').classList.remove('hidden');
+  
+  const prompt = `분석내용: ${fileContent.substring(0, 8000)}
+  지침: 이 내용을 요약하고 핵심 키워드를 추출해서 JSON 형식({"keywords": [], "summary": ""})으로 줘.`;
+  
+  try {
+    const res = await callGemini(prompt);
+    const jsonStr = res.replace(/```json|```/g, "");
+    const data = JSON.parse(jsonStr);
+    
+    document.getElementById('summaryContent').innerHTML = `<h3>요약</h3><p>${data.summary}</p>`;
+    document.getElementById('loadingSection').classList.add('hidden');
+    document.getElementById('resultSection').classList.remove('hidden');
+  } catch(e) { alert("오류: " + e.message); }
+}
 
-            try {
-                const genAI = new GoogleGenerativeAI(apiKey);
-                const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
-                const fileData = await fileToGenerativePart(fileInput);
-                const prompt = `이 PDF 파일을 분석하여 ${count}개의 객관식 퀴즈를 만들어주세요.
-                조건:
-                1. 각 퀴즈마다 정답과 상세 해설을 포함하세요.
-                2. 해설에는 반드시 해당 내용이 위치한 "PDF 페이지 번호"를 명시하세요.`;
-
-                const result = await model.generateContent([prompt, fileData]);
-                resultDiv.innerText = result.response.text();
-            } catch (error) {
-                resultDiv.innerText = "에러 발생: " + error.message;
-            }
-        };
-    </script>
+async function generateQuiz() {
+    const count = document.getElementById('quizCount').value;
+    const prompt = `내용: ${fileContent.substring(0, 8000)}
+    지침: 위 내용을 바탕으로 객관식 퀴즈 ${count}개를 만들어줘. JSON 배열 형식[{"question": "", "options": [], "answer": 0, "explanation": ""}]으로 줘.`;
+    
+    const res = await callGemini(prompt);
+    document.getElementById('quizArea').innerHTML = "퀴즈 생성 완료! (콘솔 확인)";
+    console.log(res);
+}
+</script>
 </body>
 </html>
