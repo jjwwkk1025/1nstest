@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>간호학과 조교</title>
+<title>간호학과 조교 - Gemini</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
@@ -43,15 +43,15 @@
 <body>
 
 <header>
-  <div class="logo" id="siteLogo">간호학과 조교</div>
+  <div class="logo" id="siteLogo">간호학과 조교 (Gemini)</div>
 </header>
 
 <div class="container">
   <div id="uploadSection">
     <div class="section-card">
       <div class="input-group">
-        <label class="input-label">🔑 Groq API 키 (자동 저장됨)</label>
-        <input type="password" id="apiKeyInput" placeholder="여기에 Groq API 키를 붙여넣으세요">
+        <label class="input-label">🔑 Google Gemini API 키 (자동 저장됨)</label>
+        <input type="password" id="apiKeyInput" placeholder="여기에 Google Gemini API 키를 붙여넣으세요">
       </div>
       <div class="input-group">
         <label class="input-label">📌 과목명 및 시험 범위</label>
@@ -134,7 +134,7 @@ let answered = false;
 let wrongAnswers = [];
 
 window.onload = () => {
-  const saved = localStorage.getItem('study_ai_api_key');
+  const saved = localStorage.getItem('study_ai_api_key_gemini');
   if (saved) document.getElementById('apiKeyInput').value = saved;
 };
 
@@ -176,7 +176,6 @@ document.getElementById('fileInput').addEventListener('change', async (e) => {
 
 // ✅ 강화된 JSON 파싱 함수
 function safeParseJSON(raw) {
-  // 0단계: 빈 값 체크
   if (!raw || typeof raw !== 'string') {
     throw new Error("응답이 비어있거나 문자열이 아닙니다.");
   }
@@ -190,7 +189,7 @@ function safeParseJSON(raw) {
     console.log("1단계 실패:", e.message);
   }
 
-  // 2단계: 일반적인 마크다운 코드블록 제거
+  // 2단계: 마크다운 코드블록 제거
   const patterns = [
     /```json\s*([\s\S]*?)```/gi,
     /```\s*([\s\S]*?)```/gi,
@@ -206,7 +205,7 @@ function safeParseJSON(raw) {
     }
   }
 
-  // 3단계: 모든 마크다운 제거 후 파싱
+  // 3단계: 모든 마크다운 제거
   const stripped = trimmed
     .replace(/```json\s*/gi, '')
     .replace(/```\s*/g, '')
@@ -219,7 +218,7 @@ function safeParseJSON(raw) {
     console.log("3단계 실패:", e.message);
   }
 
-  // 4단계: JSON 객체 추출 (첫 { 부터 마지막 })
+  // 4단계: JSON 객체 추출
   const objMatch = stripped.match(/\{[\s\S]*\}/);
   if (objMatch) {
     try { 
@@ -239,7 +238,7 @@ function safeParseJSON(raw) {
     }
   }
 
-  // 6단계: 수정된 JSON 시도 (작은따옴표를 큰따옴표로 변환)
+  // 6단계: 수정된 JSON 시도
   const fixed = stripped.replace(/'/g, '"');
   try { 
     return JSON.parse(fixed); 
@@ -247,7 +246,7 @@ function safeParseJSON(raw) {
     console.log("6단계 실패:", e.message);
   }
 
-  // 최후의 수단: 개행/탭 정리
+  // 7단계: 개행/탭 정리
   const cleaned = stripped
     .replace(/[\n\r\t]/g, ' ')
     .replace(/,\s*}/g, '}')
@@ -259,41 +258,36 @@ function safeParseJSON(raw) {
     console.log("7단계 실패:", e.message);
   }
 
-  throw new Error(`JSON 파싱 완전 실패. 응답: "${trimmed.substring(0, 200)}..."`);
+  throw new Error(`JSON 파싱 실패. 응답: "${trimmed.substring(0, 200)}..."`);
 }
 
-// ✅ 개선된 Groq API 호출 함수
-async function askGroq(prompt, systemMsg, isJson = true) {
+// ✅ Gemini API 호출 함수
+async function askGemini(prompt, systemMsg) {
   const key = document.getElementById('apiKeyInput').value.trim();
   if (!key) throw new Error("API 키를 입력해주세요!");
-  localStorage.setItem('study_ai_api_key', key);
+  localStorage.setItem('study_ai_api_key_gemini', key);
 
-  const payload = {
-    model: "llama-3.3-70b-versatile",
-    messages: [
-      { 
-        role: "system", 
-        content: systemMsg || "You are a helpful nursing exam assistant. Always respond with valid JSON only. No markdown, no explanation outside JSON." 
-      },
-      { role: "user", content: prompt }
-    ],
-    temperature: 0.1,
-    max_tokens: 8000,
-  };
-
-  if (isJson) {
-    payload.response_format = { type: "json_object" };
-  }
+  const fullPrompt = systemMsg ? `${systemMsg}\n\n${prompt}` : prompt;
 
   try {
-    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: 'POST',
-      headers: { 
-        'Authorization': `Bearer ${key}`, 
-        'Content-Type': 'application/json' 
-      },
-      body: JSON.stringify(payload)
-    });
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${encodeURIComponent(key)}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [{ text: fullPrompt }]
+            }
+          ],
+          generationConfig: {
+            temperature: 0.1,
+            maxOutputTokens: 8000
+          }
+        })
+      }
+    );
 
     const data = await res.json();
     
@@ -302,7 +296,7 @@ async function askGroq(prompt, systemMsg, isJson = true) {
       throw new Error(`[${res.status}] ${errorMsg}`);
     }
 
-    const content = data.choices[0]?.message?.content;
+    const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!content) {
       throw new Error("API로부터 빈 응답을 받았습니다.");
     }
@@ -352,7 +346,7 @@ function validateQuizData(questions) {
     });
 
   if (validated.length === 0) {
-    throw new Error("유효한 문제가 0개입니다. (모두 필터링됨)");
+    throw new Error("유효한 문제가 0개입니다.");
   }
 
   return validated;
@@ -365,10 +359,13 @@ async function startAnalysis() {
   document.getElementById('loadingSection').classList.remove('hidden');
   document.getElementById('loadingMsg').textContent = "조교가 자료를 분석하고 있습니다...";
 
-  const prompt = `과목: ${subject}\n\n아래 강의 내용을 분석하고, 반드시 다음 JSON 형식으로만 응답하세요:\n{"keywords": ["핵심키워드1", "핵심키워드2", "핵심키워드3"], "lecture": "개념별로 정리한 전체 요약 내용. 예시 포함."}\n\n강의 내용:\n${fileContent.substring(0, 10000)}`;
+  const systemMsg = `You are a helpful nursing exam assistant. Always respond with valid JSON only. No markdown, no explanation outside JSON.
+Return ONLY this JSON format: {"keywords": ["keyword1", "keyword2", "keyword3"], "lecture": "full summary content"}`;
+
+  const prompt = `과목: ${subject}\n\n강의 내용:\n${fileContent.substring(0, 10000)}`;
 
   try {
-    const raw = await askGroq(prompt);
+    const raw = await askGemini(prompt, systemMsg);
     const data = safeParseJSON(raw);
 
     const keywords = Array.isArray(data.keywords) ? data.keywords : [];
@@ -407,18 +404,16 @@ async function generateQuiz(count) {
   document.getElementById('resultSection').classList.add('hidden');
   document.getElementById('loadingMsg').textContent = `${count}개 문제를 생성하고 있습니다...`;
 
-  const systemMsg = `You are a Korean nursing exam question generator. You MUST respond ONLY with valid JSON in this exact format:
-{"questions": [{"question": "문제1", "options": ["선택지1", "선택지2", "선택지3", "선택지4", "선택지5"], "answer": 0, "explanation": "설명"}]}
-Do NOT include any text before or after JSON. Do NOT use markdown code blocks.`;
+  const systemMsg = `You are a Korean nursing exam question generator. You MUST respond ONLY with valid JSON. No text before or after JSON.
+Return ONLY this exact format: {"questions": [{"question": "문제내용", "options": ["선택지1", "선택지2", "선택지3", "선택지4", "선택지5"], "answer": 0, "explanation": "설명"}]}`;
 
-  const prompt = `간호학 문제를 ${count}개 생성하세요.
+  const prompt = `간호학 문제를 정확히 ${count}개 생성하세요.
 
 규칙:
-- JSON만 응답 (다른 텍스트 금지)
-- question: 문제 내용
-- options: 5개 선택지 배열
-- answer: 0~4 숫자 (정답 인덱스)
-- explanation: 해설
+- 각 문제는 question, options(5개), answer(0~4 인덱스), explanation 필드 필수
+- answer는 options 배열의 정답 인덱스(숫자)
+- 모든 텍스트는 한국어
+- JSON 외의 텍스트는 절대 금지
 
 강의 내용:
 ${fileContent.substring(0, 12000)}`;
@@ -429,7 +424,7 @@ ${fileContent.substring(0, 12000)}`;
   while (attempts < maxAttempts) {
     attempts++;
     try {
-      const raw = await askGroq(prompt, systemMsg, true);
+      const raw = await askGemini(prompt, systemMsg);
       const parsed = safeParseJSON(raw);
 
       let questions = parsed.questions || parsed;
