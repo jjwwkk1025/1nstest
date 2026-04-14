@@ -3,56 +3,39 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>간호학과 조교</title>
+<title id="mainTitle">간호학과 조교</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
   body{font-family:'Pretendard','Segoe UI',sans-serif;background:#0f1117;color:#e2e8f0;min-height:100vh;overflow-x:hidden}
   :root{--accent:#6c63ff;--accent2:#a78bfa;--bg:#0f1117;--card:#1a1d27;--card2:#22263a;--border:#2d3148;--text:#e2e8f0;--muted:#8892b0;--success:#10b981;--error:#f87171}
   header{background:#1a1d27;border-bottom:1px solid var(--border);padding:16px 24px;display:flex;align-items:center;gap:12px}
-  .logo{font-size:1.2rem;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;transition:all 0.5s ease}
-  .container{max-width:1400px;margin:0 auto;padding:32px 16px}
+  .logo{font-size:1.2rem;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent; transition: all 0.5s ease;}
+  .container{max-width:860px;margin:0 auto;padding:32px 16px}
   .section-card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:28px;margin-bottom:24px;animation:fadeIn 0.5s ease}
   .input-group{margin-bottom:20px}
   .input-label{display:block;margin-bottom:8px;font-size:0.9rem;color:var(--accent2);font-weight:600}
-  input[type="text"],input[type="password"],input[type="number"],input[type="file"]{width:100%;padding:12px;border-radius:10px;border:1px solid var(--border);background:var(--card2);color:white;outline:none}
-  input[type="text"]:focus,input[type="password"]:focus,input[type="number"]:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(108,99,255,0.1)}
-  .upload-area{border:2px dashed var(--border);border-radius:20px;padding:40px 24px;text-align:center;cursor:pointer;background:var(--card);transition:all 0.3s;margin-bottom:15px}
+  input[type="text"], input[type="password"], input[type="number"]{width:100%;padding:12px;border-radius:10px;border:1px solid var(--border);background:var(--card2);color:white;outline:none}
+  .upload-area{border:2px dashed var(--border);border-radius:20px;padding:40px 24px;text-align:center;cursor:pointer;background:var(--card);transition:all 0.3s}
   .upload-area:hover{border-color:var(--accent);background:#1e1b3a}
-  .btn{display:inline-flex;align-items:center;gap:8px;padding:12px 24px;border-radius:12px;border:none;cursor:pointer;font-size:1rem;font-weight:600;transition:0.2s}
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:12px 24px;border-radius:12px;border:none;cursor:pointer;font-size:1rem;font-weight:600; transition:0.2s}
   .btn:active{transform:scale(0.98)}
   .btn-primary{background:linear-gradient(135deg,var(--accent),#8b5cf6);color:#fff;width:100%;justify-content:center}
-  .btn-outline{background:transparent;border:1px solid var(--border);color:var(--text);width:100%;justify-content:center;margin-top:12px}
+  .btn-outline{background:transparent; border:1px solid var(--border); color:var(--text); width:100%; justify-content:center; margin-top:12px}
   .btn-primary:disabled{opacity:.4;cursor:not-allowed}
   .tabs{display:flex;gap:8px;background:var(--card);border-radius:14px;padding:6px;margin-bottom:24px}
-  .tab{flex:1;padding:12px;border:none;background:transparent;color:var(--muted);border-radius:10px;cursor:pointer;font-weight:600;transition:0.2s}
+  .tab{flex:1;padding:12px;border:none;background:transparent;color:var(--muted);border-radius:10px;cursor:pointer;font-weight:600}
   .tab.active{background:var(--accent);color:#fff}
   .summary-text{line-height:1.9;color:#cbd5e1;font-size:1.05rem;white-space:pre-wrap}
   .keyword-chip{display:inline-block;background:#1e1b3a;border:1px solid var(--accent);color:var(--accent2);border-radius:20px;padding:6px 14px;font-size:.85rem;margin:5px}
-  .option{display:flex;align-items:center;gap:14px;padding:16px;border-radius:12px;border:1px solid var(--border);cursor:pointer;background:var(--card2);margin-bottom:10px;transition:0.2s}
-  .option:hover{border-color:var(--accent2);background:rgba(108,99,255,0.05)}
+  .option{display:flex;align-items:center;gap:14px;padding:16px;border-radius:12px;border:1px solid var(--border);cursor:pointer;background:var(--card2);margin-bottom:10px}
   .option.correct{border-color:var(--success);background:rgba(16,185,129,0.1);color:var(--success)}
   .option.wrong{border-color:var(--error);background:rgba(248,113,113,0.1);color:var(--error)}
   .loader{display:flex;flex-direction:column;align-items:center;gap:20px;padding:60px 0}
   .spinner{width:40px;height:40px;border:4px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite}
-  .error-box{background:rgba(248,113,113,0.1);border:1px solid var(--error);border-radius:12px;padding:16px;margin-top:12px;color:var(--error);font-size:0.9rem;display:none}
-  .explanation{margin-top:15px;padding:15px;background:#1a2236;border-left:4px solid var(--accent);border-radius:8px;line-height:1.7}
-  .simple-explanation{margin-top:10px;padding:12px;background:rgba(107,114,128,0.1);border-left:4px solid var(--accent2);border-radius:8px;line-height:1.6;font-size:0.95rem}
-  .progress-bar{width:100%;height:4px;background:var(--border);border-radius:2px;margin-bottom:15px;overflow:hidden}
-  .progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width 0.3s}
-  .pdf-viewer-wrapper{display:flex;gap:20px;margin-top:20px;max-width:100%}
-  .quiz-content{flex:1;min-width:0}
-  .pdf-panel{flex:0 0 35%;max-height:800px;overflow-y:auto;border:1px solid var(--border);border-radius:12px;padding:15px;background:var(--card2)}
-  .pdf-canvas{width:100%;margin-bottom:10px;border-radius:8px;background:white}
-  .pdf-nav{display:flex;gap:8px;justify-content:center;font-size:0.9rem;color:var(--muted);margin-top:10px}
-  .file-badge{display:inline-block;background:var(--card2);padding:8px 14px;border-radius:6px;border:1px solid var(--border);margin:5px;font-size:0.9rem}
   @keyframes spin{to{transform:rotate(360deg)}}
   .hidden{display:none!important}
   @keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
-  @media (max-width: 1024px) {
-    .pdf-viewer-wrapper{flex-direction:column}
-    .pdf-panel{flex:1;max-height:400px}
-  }
 </style>
 </head>
 <body>
@@ -65,49 +48,30 @@
   <div id="uploadSection">
     <div class="section-card">
       <div class="input-group">
-        <label class="input-label">🔑 Google Gemini API 키 (자동 저장됨)</label>
-        <input type="password" id="apiKeyInput" placeholder="여기에 Google Gemini API 키를 붙여넣으세요">
+        <label class="input-label">🔑 구글 API 키 (자동 저장됨)</label>
+        <input type="password" id="apiKeyInput" placeholder="여기에 API 키를 붙여넣으세요">
       </div>
       <div class="input-group">
         <label class="input-label">📌 과목명 및 시험 범위</label>
         <input type="text" id="subjectInput" placeholder="예: 성인간호학 - 순환기계 구조와 기능">
       </div>
-      
-      <div>
-        <label class="input-label">📄 PDF/TXT 파일 1 (필수)</label>
-        <div class="upload-area" onclick="document.getElementById('fileInput1').click()">
-          <span style="font-size:2.5rem">📄</span>
-          <h3 style="margin-top:10px">파일 1 선택</h3>
-          <p style="color:var(--muted);font-size:0.9rem;margin-top:5px">PDF 또는 TXT 파일을 선택하세요</p>
-        </div>
-        <input type="file" id="fileInput1" accept=".pdf,.txt" style="display:none">
-        <div id="fileBadge1" class="hidden">
-          <span class="file-badge">📄 <span id="fileName1"></span></span>
+      <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+        <span style="font-size:2.5rem">📄</span>
+        <h3 style="margin-top:10px">강의 자료(PDF/TXT) 업로드</h3>
+        <p style="color:var(--muted); font-size:0.9rem; margin-top:5px;">파일을 선택하면 글자 추출이 시작됩니다.</p>
+        <input type="file" id="fileInput" accept=".pdf,.txt" style="display:none">
+        <div id="fileBadge" class="hidden" style="margin-top:15px">
+          <span style="background:var(--card2);padding:5px 12px;border-radius:6px;border:1px solid var(--border)">
+            <span id="fileName"></span>
+          </span>
         </div>
       </div>
-
-      <div style="margin-top:20px">
-        <label class="input-label">📄 PDF/TXT 파일 2 (선택사항)</label>
-        <div class="upload-area" onclick="document.getElementById('fileInput2').click()">
-          <span style="font-size:2.5rem">📋</span>
-          <h3 style="margin-top:10px">파일 2 선택</h3>
-          <p style="color:var(--muted);font-size:0.9rem;margin-top:5px">추가 자료가 있으면 선택하세요</p>
-        </div>
-        <input type="file" id="fileInput2" accept=".pdf,.txt" style="display:none">
-        <div id="fileBadge2" class="hidden">
-          <span class="file-badge">📋 <span id="fileName2"></span></span>
-        </div>
-      </div>
-
       <button class="btn btn-primary" id="analyzeBtn" disabled onclick="startAnalysis()" style="margin-top:20px">✨ 학습 시작하기</button>
     </div>
   </div>
 
   <div id="loadingSection" class="hidden">
-    <div class="loader">
-      <div class="spinner"></div>
-      <p style="color:var(--accent2);font-weight:600" id="loadingMsg">조교가 자료를 분석하고 있습니다...</p>
-    </div>
+    <div class="loader"><div class="spinner"></div><p style="color:var(--accent2); font-weight:600">조교가 자료를 분석하고 있습니다...</p></div>
   </div>
 
   <div id="resultSection" class="hidden">
@@ -115,58 +79,36 @@
       <button class="tab active" id="tabSummary" onclick="switchTab('summary')">📖 개념 강의</button>
       <button class="tab" id="tabQuiz" onclick="switchTab('quiz')">✍ 국시 대비 문제</button>
     </div>
-
+    
     <div id="summaryTab">
-      <div class="section-card">
-        <h2 style="margin-bottom:20px;color:var(--accent2)">📚 핵심 개념</h2>
-        <div id="keywords" style="margin-bottom:20px"></div>
-        <div class="summary-text" id="lectureContent"></div>
-      </div>
+      <div class="section-card"><div id="keywords"></div><div class="summary-text" id="lectureContent" style="margin-top:20px"></div></div>
     </div>
-
+    
     <div id="quizTab" class="hidden">
-      <div id="quizSetup" class="section-card" style="text-align:center;padding:40px">
-        <h2 style="margin-bottom:20px;color:var(--accent2)">🧠 맞춤형 퀴즈 설정</h2>
-        <div style="margin-bottom:30px">
-          <label style="font-size:1.1rem;font-weight:600">출제할 문항 수 (10~50개) : </label>
-          <input type="number" id="quizCountInput" min="10" max="50" value="10" style="width:100px;text-align:center;font-size:1.1rem;margin-top:10px">
+      <div id="quizSetup" class="section-card" style="text-align:center; padding:40px;">
+        <h2 style="margin-bottom:20px; color:var(--accent2);">🧠 맞춤형 퀴즈 설정</h2>
+        <div style="margin-bottom:30px;">
+          <label style="font-size:1.1rem; font-weight:600;">출제할 문항 수 (10~50개) : </label>
+          <input type="number" id="quizCountInput" min="10" max="50" value="10" style="width:100px; text-align:center; font-size:1.1rem;">
         </div>
-        <p style="color:var(--muted);font-size:0.85rem;margin-bottom:20px">※ 문항 수가 많을수록 생성 시간이 길어질 수 있습니다</p>
-        <button class="btn btn-primary" onclick="startQuizGen()" style="padding:15px;font-size:1.1rem">🚀 퀴즈 생성 시작</button>
-        <div id="quizErrorBox" class="error-box"></div>
+        <button class="btn btn-primary" onclick="startQuizGen()" style="padding:15px; font-size:1.1rem;">🚀 퀴즈 생성 시작</button>
       </div>
 
       <div id="quizArea" class="hidden">
-        <div class="progress-bar">
-          <div class="progress-fill" id="progressFill"></div>
-        </div>
-        <div class="pdf-viewer-wrapper">
-          <div class="quiz-content">
-            <div id="quizProgress" style="margin-bottom:15px;font-weight:600;color:var(--accent2)"></div>
-            <div id="questionCard" class="section-card"></div>
-            <button class="btn btn-primary" id="nextBtn" onclick="nextQuestion()" disabled style="margin-top:20px">다음 문제로</button>
-          </div>
-          <div id="pdfPanel" class="pdf-panel hidden">
-            <h4 style="margin-bottom:10px;color:var(--accent2)">📖 참고 자료</h4>
-            <canvas id="pdfCanvas" class="pdf-canvas"></canvas>
-            <div class="pdf-nav">
-              <button class="btn" id="pdfPrevBtn" onclick="prevPdfPage()" style="padding:6px 12px;font-size:0.9rem">← 이전</button>
-              <span id="pdfPageInfo"></span>
-              <button class="btn" id="pdfNextBtn" onclick="nextPdfPage()" style="padding:6px 12px;font-size:0.9rem">다음 →</button>
-            </div>
-          </div>
-        </div>
+        <div id="quizProgress" style="margin-bottom:15px; font-weight:600; color:var(--accent2)"></div>
+        <div id="questionCard" class="section-card"></div>
+        <button class="btn btn-primary" id="nextBtn" onclick="nextQuestion()" disabled>다음 문제로</button>
       </div>
 
       <div id="quizReviewArea" class="hidden">
         <div class="section-card">
-          <h2 style="text-align:center;color:var(--accent2);margin-bottom:10px">📝 오답 노트 확인</h2>
-          <h3 id="finalScore" style="text-align:center;margin-bottom:30px;color:var(--muted)"></h3>
-          <div id="reviewList"></div>
+            <h2 style="text-align:center; color:var(--accent2); margin-bottom:10px;">📝 오답 노트 확인</h2>
+            <h3 id="finalScore" style="text-align:center; margin-bottom:30px; color:var(--muted);"></h3>
+            <div id="reviewList"></div>
         </div>
-        <div style="margin-bottom:40px">
-          <button class="btn btn-primary" onclick="resetQuizSetup()" style="padding:15px;font-size:1.1rem">✍ 문제를 더 풀고 싶어요</button>
-          <button class="btn btn-outline" onclick="location.reload()">🏠 처음 창으로 돌아가기 (파일 재업로드)</button>
+        <div style="margin-bottom:40px;">
+            <button class="btn btn-primary" onclick="resetQuizSetup()" style="padding:15px; font-size:1.1rem;">✍ 문제를 더 풀고 싶어요</button>
+            <button class="btn btn-outline" onclick="location.reload()">🏠 처음 창으로 돌아가기 (파일 재업로드)</button>
         </div>
       </div>
     </div>
@@ -174,364 +116,142 @@
 </div>
 
 <script>
-let fileContent1 = "";
-let fileContent2 = "";
-let pdfFiles = {};
-let currentPdfPage = 1;
-let currentPdfDoc = null;
+let fileContent = "";
 let quizData = [];
 let currentQ = 0;
 let score = 0;
 let answered = false;
 let wrongAnswers = [];
 
-window.onload = () => {
-  const saved = localStorage.getItem('study_ai_api_key_gemini35');
-  if (saved) document.getElementById('apiKeyInput').value = saved;
+window.onload = function() {
+  const savedKey = localStorage.getItem('study_ai_api_key');
+  if (savedKey) {
+    document.getElementById('apiKeyInput').value = savedKey;
+  }
 };
 
-async function processPdfFile(fileInput, contentVar, fileNum) {
-  const file = fileInput.files[0];
-  if (!file) return false;
-  
-  document.getElementById(`fileName${fileNum}`).textContent = `⏳ ${file.name} (추출 중...)`;
-  document.getElementById(`fileBadge${fileNum}`).classList.remove('hidden');
+document.getElementById('fileInput').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  document.getElementById('fileName').textContent = `⏳ ${file.name} (글자 추출 중...)`;
+  document.getElementById('fileBadge').classList.remove('hidden');
+  document.getElementById('analyzeBtn').disabled = true;
 
+  const reader = new FileReader();
   if (file.type === "application/pdf") {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = async function() {
-        try {
-          const pdfjsLib = window['pdfjs-dist/build/pdf'];
-          pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
-          const pdf = await pdfjsLib.getDocument(new Uint8Array(this.result)).promise;
-          
-          pdfFiles[fileNum] = pdf;
-          
-          let text = "";
-          for (let i = 1; i <= Math.min(pdf.numPages, 20); i++) {
-            const page = await pdf.getPage(i);
-            const content = await page.getTextContent();
-            text += `\n--- [${i}페이지] ---\n` + content.items.map(s => s.str).join(" ") + "\n";
-          }
-          
-          if (contentVar === 1) {
-            fileContent1 = text;
-          } else {
-            fileContent2 = text;
-          }
-          
-          document.getElementById(`fileName${fileNum}`).textContent = `✔ ${file.name}`;
-          resolve(true);
-        } catch (err) {
-          alert(`PDF ${fileNum} 추출 실패: ${err.message}`);
-          resolve(false);
+    reader.onload = async function() {
+      try {
+        const typedarray = new Uint8Array(this.result);
+        const pdfjsLib = window['pdfjs-dist/build/pdf'];
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+        const pdf = await pdfjsLib.getDocument(typedarray).promise;
+        let text = "";
+        for (let i = 1; i <= Math.min(pdf.numPages, 15); i++) {
+          const page = await pdf.getPage(i);
+          const content = await page.getTextContent();
+          text += `\n--- [${i} 페이지] ---\n` + content.items.map(s => s.str).join(" ") + "\n";
         }
-      };
-      reader.readAsArrayBuffer(file);
-    });
+        fileContent = text;
+        document.getElementById('fileName').textContent = `✔ ${file.name} (준비 완료!)`;
+        document.getElementById('analyzeBtn').disabled = false;
+      } catch (err) {
+        alert("PDF 추출 실패");
+      }
+    };
+    reader.readAsArrayBuffer(file);
   } else {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = function() {
-        if (contentVar === 1) {
-          fileContent1 = this.result;
-        } else {
-          fileContent2 = this.result;
-        }
-        document.getElementById(`fileName${fileNum}`).textContent = `✔ ${file.name}`;
-        resolve(true);
-      };
-      reader.readAsText(file);
-    });
+    reader.onload = function() { 
+      fileContent = this.result; 
+      document.getElementById('fileName').textContent = `✔ ${file.name}`;
+      document.getElementById('analyzeBtn').disabled = false;
+    };
+    reader.readAsText(file);
   }
-}
-
-document.getElementById('fileInput1').addEventListener('change', async (e) => {
-  await processPdfFile(document.getElementById('fileInput1'), 1, 1);
-  checkAnalyzeBtnState();
 });
 
-document.getElementById('fileInput2').addEventListener('change', async (e) => {
-  await processPdfFile(document.getElementById('fileInput2'), 2, 2);
-});
+async function askGemini(prompt) {
+  const keyInput = document.getElementById('apiKeyInput').value.trim();
+  if (!keyInput) throw new Error("API 키를 먼저 입력해주세요!");
+  localStorage.setItem('study_ai_api_key', keyInput);
 
-function checkAnalyzeBtnState() {
-  const hasFile1 = fileContent1.length > 0;
-  document.getElementById('analyzeBtn').disabled = !hasFile1;
-}
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key=${keyInput}`;
 
-async function renderPdfPage(pageNum) {
-  if (!currentPdfDoc) return;
-  
-  if (pageNum < 1 || pageNum > currentPdfDoc.numPages) return;
-  
-  const page = await currentPdfDoc.getPage(pageNum);
-  const scale = 1.5;
-  const viewport = page.getViewport({ scale });
-  
-  const canvas = document.getElementById('pdfCanvas');
-  canvas.width = viewport.width;
-  canvas.height = viewport.height;
-  
-  const context = canvas.getContext('2d');
-  await page.render({ canvasContext: context, viewport }).promise;
-  
-  currentPdfPage = pageNum;
-  document.getElementById('pdfPageInfo').textContent = `${pageNum} / ${currentPdfDoc.numPages}`;
-  
-  document.getElementById('pdfPrevBtn').disabled = pageNum === 1;
-  document.getElementById('pdfNextBtn').disabled = pageNum === currentPdfDoc.numPages;
-}
-
-function prevPdfPage() {
-  if (currentPdfPage > 1) renderPdfPage(currentPdfPage - 1);
-}
-
-function nextPdfPage() {
-  if (currentPdfDoc && currentPdfPage < currentPdfDoc.numPages) renderPdfPage(currentPdfPage + 1);
-}
-
-function safeParseJSON(raw) {
-  if (!raw || typeof raw !== 'string') {
-    throw new Error("응답이 비어있거나 문자열이 아닙니다.");
-  }
-
-  const trimmed = raw.trim();
-
-  try { return JSON.parse(trimmed); } catch(e) {}
-
-  const patterns = [/```json\s*([\s\S]*?)```/gi, /```\s*([\s\S]*?)```/gi];
-  for (let pattern of patterns) {
-    const match = trimmed.match(pattern);
-    if (match && match[1]) {
-      try { return JSON.parse(match[1].trim()); } catch(e) {}
-    }
-  }
-
-  const stripped = trimmed
-    .replace(/```json\s*/gi, '')
-    .replace(/```\s*/g, '')
-    .replace(/^#+\s*.*/gm, '')
-    .trim();
-
-  try { return JSON.parse(stripped); } catch(e) {}
-
-  const objMatch = stripped.match(/\{[\s\S]*\}/);
-  if (objMatch) {
-    try { return JSON.parse(objMatch[0]); } catch(e) {}
-  }
-
-  const arrMatch = stripped.match(/\[[\s\S]*\]/);
-  if (arrMatch) {
-    try { return JSON.parse(arrMatch[0]); } catch(e) {}
-  }
-
-  throw new Error("JSON 파싱 실패");
-}
-
-async function askGemini(prompt, systemMsg) {
-  const key = document.getElementById('apiKeyInput').value.trim();
-  if (!key) throw new Error("API 키를 입력해주세요!");
-  localStorage.setItem('study_ai_api_key_gemini35', key);
-
-  const fullPrompt = systemMsg ? `${systemMsg}\n\n${prompt}` : prompt;
-
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1/models/gemini-3.1-flash-lite:generateContent?key=${encodeURIComponent(key)}`,
-    {
+  try {
+    const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: fullPrompt }] }],
-        generationConfig: { temperature: 0.1, maxOutputTokens: 8000 }
-      })
-    }
-  );
-
-  const data = await res.json();
-  
-  if (!res.ok) {
-    const errorMsg = data.error?.message || "API 요청 실패";
-    throw new Error(`[${res.status}] ${errorMsg}`);
-  }
-
-  const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!content) throw new Error("API로부터 빈 응답을 받았습니다.");
-
-  return content;
-}
-
-function validateQuizData(questions) {
-  if (!Array.isArray(questions)) throw new Error("questions이 배열이 아닙니다.");
-  if (questions.length === 0) throw new Error("생성된 문제가 0개입니다.");
-
-  const validated = questions
-    .filter(q => {
-      const hasQuestion = q.question && String(q.question).trim().length > 0;
-      const hasOptions = Array.isArray(q.options) && q.options.length >= 2;
-      const hasAnswer = typeof q.answer !== 'undefined' && q.answer !== null;
-      return hasQuestion && hasOptions && hasAnswer;
-    })
-    .map(q => {
-      const answer = parseInt(q.answer);
-      return {
-        question: String(q.question).trim(),
-        options: q.options.map(o => String(o).trim()).slice(0, 5),
-        answer: Math.min(Math.max(answer, 0), q.options.length - 1),
-        explanation: String(q.explanation || "해설 없음").trim(),
-        simple_explanation: String(q.simple_explanation || "").trim(),
-        source_page: q.source_page || ""
-      };
+      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
     });
-
-  if (validated.length === 0) throw new Error("유효한 문제가 0개입니다.");
-  return validated;
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error?.message || "연결 실패");
+    let result = data.candidates[0].content.parts[0].text;
+    const jsonMatch = result.match(/[\{\[][\s\S]*[\}\]]/);
+    return jsonMatch ? jsonMatch[0] : result.replace(/```json|```/g, "").trim();
+  } catch (err) { throw err; }
 }
 
 async function startAnalysis() {
   const subject = document.getElementById('subjectInput').value || "미지정 과목";
+  
+  // 💡 [핵심] 학습 시작 버튼 클릭 시 로고 텍스트를 변경합니다
   document.getElementById('siteLogo').textContent = "귀요미 진서>.<를 위한 시험준비 도구";
+  
+  // 💡 브라우저 탭 이름은 그대로 유지
+  document.title = "간호학과 조교";
+  
   document.getElementById('uploadSection').classList.add('hidden');
   document.getElementById('loadingSection').classList.remove('hidden');
-  document.getElementById('loadingMsg').textContent = "조교가 자료를 분석하고 있습니다...";
-
-  const systemMsg = `You are a helpful nursing exam assistant. Always respond with valid JSON only. No markdown, no explanation outside JSON.
-Return ONLY this JSON format: {"keywords": ["keyword1", "keyword2", "keyword3", "keyword4", "keyword5"], "lecture": "full summary content in Korean"}`;
-
-  const combinedContent = fileContent1 + (fileContent2 ? "\n\n" + fileContent2 : "");
-  const prompt = `과목: ${subject}\n\n강의 내용:\n${combinedContent.substring(0, 12000)}`;
-
+  
+  const prompt = `간호학 조교로서 업로드 내용을 분석해 JSON으로 답하세요. 모든 용어 영어 병기 필수. {"keywords": [], "lecture": ""} 과목: ${subject} 내용: ${fileContent.substring(0, 10000)}`;
+  
   try {
-    const raw = await askGemini(prompt, systemMsg);
-    const data = safeParseJSON(raw);
-
-    const keywords = Array.isArray(data.keywords) ? data.keywords : [];
-    let lectureText = data.lecture || "분석 실패";
-    if (typeof lectureText !== 'string') lectureText = JSON.stringify(lectureText);
-
-    document.getElementById('keywords').innerHTML = keywords.map(k => `<span class="keyword-chip">${k}</span>`).join('');
-    document.getElementById('lectureContent').innerHTML = lectureText.replace(/\n/g, '<br>');
+    const res = await askGemini(prompt);
+    const data = JSON.parse(res);
+    document.getElementById('keywords').innerHTML = data.keywords.map(k => `<span class="keyword-chip">${k}</span>`).join('');
+    document.getElementById('lectureContent').innerHTML = data.lecture.replace(/\n/g, '<br>');
     document.getElementById('loadingSection').classList.add('hidden');
     document.getElementById('resultSection').classList.remove('hidden');
-  } catch (e) {
-    alert("분석 실패: " + e.message);
-    location.reload();
-  }
+  } catch (e) { alert("분석 실패: " + e.message); location.reload(); }
 }
 
 function startQuizGen() {
-  let count = parseInt(document.getElementById('quizCountInput').value) || 10;
-  count = Math.min(Math.max(count, 10), 50);
-  document.getElementById('quizErrorBox').style.display = 'none';
+  let count = parseInt(document.getElementById('quizCountInput').value);
+  if (count < 10) count = 10; if (count > 50) count = 50;
   document.getElementById('quizSetup').classList.add('hidden');
   generateQuiz(count);
 }
 
 function resetQuizSetup() {
-  document.getElementById('quizReviewArea').classList.add('hidden');
-  document.getElementById('quizArea').classList.add('hidden');
-  document.getElementById('pdfPanel').classList.add('hidden');
-  document.getElementById('quizSetup').classList.remove('hidden');
-  window.scrollTo(0, 0);
+    document.getElementById('quizReviewArea').classList.add('hidden');
+    document.getElementById('quizSetup').classList.remove('hidden');
+    window.scrollTo(0, 0);
 }
 
 async function generateQuiz(count) {
   document.getElementById('loadingSection').classList.remove('hidden');
   document.getElementById('resultSection').classList.add('hidden');
-  document.getElementById('loadingMsg').textContent = `${count}개 문제를 생성하고 있습니다...`;
-
-  const systemMsg = `You are a Korean nursing exam question generator. You MUST respond ONLY with valid JSON. No text before or after JSON. No markdown.
-Return ONLY this format: {"questions": [{"question": "문제내용", "options": ["선택지1", "선택지2", "선택지3", "선택지4", "선택지5"], "answer": 0, "explanation": "상세한 해설", "simple_explanation": "쉬운 설명", "source_page": "X"}]}`;
-
-  const combinedContent = fileContent1 + (fileContent2 ? "\n\n" + fileContent2 : "");
-  const prompt = `간호학 국가고시 스타일 5지선다 문제를 정확히 ${count}개 생성하세요.
-
-규칙:
-- 각 문제: question, options(5개), answer(0~4), explanation(상세한 설명), simple_explanation(쉬운 쉽게 설명), source_page(내용이 나온 페이지 번호)
-- answer는 정답의 인덱스 (0~4)
-- 모든 텍스트는 한국어
-- JSON 외의 텍스트는 절대 금지
-
-강의 내용:
-${combinedContent.substring(0, 15000)}`;
-
-  let attempts = 0;
-  const maxAttempts = 3;
-
-  while (attempts < maxAttempts) {
-    attempts++;
-    try {
-      const raw = await askGemini(prompt, systemMsg);
-      const parsed = safeParseJSON(raw);
-
-      let questions = parsed.questions || parsed;
-      if (!Array.isArray(questions)) {
-        const values = Object.values(parsed);
-        questions = values.find(v => Array.isArray(v)) || [];
-      }
-
-      quizData = validateQuizData(questions);
-      currentQ = 0;
-      score = 0;
-      wrongAnswers = [];
-      
-      document.getElementById('loadingSection').classList.add('hidden');
-      document.getElementById('resultSection').classList.remove('hidden');
-      document.getElementById('quizArea').classList.remove('hidden');
-      showQuestion();
-      return;
-
-    } catch (e) {
-      console.error(`시도 ${attempts}/${maxAttempts} 실패:`, e.message);
-      if (attempts >= maxAttempts) {
-        document.getElementById('loadingSection').classList.add('hidden');
-        document.getElementById('resultSection').classList.remove('hidden');
-        document.getElementById('quizSetup').classList.remove('hidden');
-        const errBox = document.getElementById('quizErrorBox');
-        errBox.style.display = 'block';
-        errBox.innerHTML = `❌ 문제 생성 실패<br>
-        - 문항 수를 줄이거나 다시 시도하세요<br>
-        - API 키가 유효한지 확인하세요`;
-      }
-    }
-  }
+  const prompt = `간호사 국가고시 스타일 5지선다 문제 ${count}개를 JSON 배열로 만드세요. 문제와 해설에 출처 페이지를 [x페이지] 형태로 포함하세요. [{"question": "문제(영어병기) (출처: x페이지)", "options": [], "answer": 0, "explanation": "[x페이지] 해설"}] 내용: ${fileContent.substring(0, 15000)}`;
+  try {
+    const res = await askGemini(prompt);
+    quizData = JSON.parse(res);
+    currentQ = 0; score = 0; wrongAnswers = [];
+    showQuestion();
+    document.getElementById('loadingSection').classList.add('hidden');
+    document.getElementById('resultSection').classList.remove('hidden');
+    document.getElementById('quizArea').classList.remove('hidden');
+  } catch (e) { alert("퀴즈 생성 실패"); location.reload(); }
 }
 
 function showQuestion() {
   answered = false;
   const q = quizData[currentQ];
-  const progress = ((currentQ) / quizData.length) * 100;
-  
   document.getElementById('nextBtn').disabled = true;
-  document.getElementById('progressFill').style.width = progress + '%';
-  document.getElementById('quizProgress').textContent = `테스트 진행 중: ${currentQ + 1} / ${quizData.length}`;
+  document.getElementById('quizProgress').textContent = `테스트 진행중: ${currentQ + 1} / ${quizData.length}`;
   document.getElementById('questionCard').innerHTML = `
-    <h3 style="line-height:1.6;margin-bottom:20px">${currentQ + 1}. ${q.question}</h3>
-    <div>${q.options.map((o, i) => `<div class="option" onclick="checkAnswer(${i})"><span style="font-weight:700;color:var(--accent2);min-width:20px">${i+1}</span> ${o}</div>`).join('')}</div>
-    <div id="qExp" class="explanation hidden">
-      <strong>📚 상세 해설</strong><br>
-      ${q.explanation}
-      ${q.simple_explanation ? `<div class="simple-explanation"><strong>💡 쉬운 설명:</strong> ${q.simple_explanation}</div>` : ''}
-      ${q.source_page ? `<div style="margin-top:10px;font-size:0.9rem;color:var(--muted)">📄 출처: ${q.source_page}페이지</div>` : ''}
-    </div>
+    <h3 style="line-height:1.6; margin-bottom:20px;">${q.question}</h3>
+    <div>${q.options.map((o, i) => `<div class="option" onclick="checkAnswer(${i})">(${i+1}) ${o}</div>`).join('')}</div>
+    <div id="qExp" class="hidden" style="margin-top:15px; padding:15px; background:#1a2236; border-left:4px solid var(--accent)">💡 ${q.explanation}</div>
   `;
-  
-  // PDF 표시 설정
-  if (q.source_page) {
-    const pageNum = parseInt(q.source_page);
-    if (pdfFiles[1] && pageNum > 0) {
-      currentPdfDoc = pdfFiles[1];
-      document.getElementById('pdfPanel').classList.remove('hidden');
-      renderPdfPage(Math.min(pageNum, currentPdfDoc.numPages));
-    } else if (pdfFiles[2] && pageNum > 0) {
-      currentPdfDoc = pdfFiles[2];
-      document.getElementById('pdfPanel').classList.remove('hidden');
-      renderPdfPage(Math.min(pageNum, currentPdfDoc.numPages));
-    }
-  } else {
-    document.getElementById('pdfPanel').classList.add('hidden');
-  }
 }
 
 function checkAnswer(idx) {
@@ -539,52 +259,36 @@ function checkAnswer(idx) {
   answered = true;
   const q = quizData[currentQ];
   const opts = document.querySelectorAll('.option');
-  
-  if (idx === q.answer) {
-    opts[idx].classList.add('correct');
-    score++;
-  } else {
-    opts[idx].classList.add('wrong');
-    opts[q.answer].classList.add('correct');
-    wrongAnswers.push({ ...q, userAnswer: idx });
+  if (idx === q.answer) { opts[idx].classList.add('correct'); score++; }
+  else { 
+    opts[idx].classList.add('wrong'); opts[q.answer].classList.add('correct');
+    wrongAnswers.push({ question: q.question, options: q.options, userAnswer: idx, correctAnswer: q.answer, explanation: q.explanation });
   }
-  
   document.getElementById('qExp').classList.remove('hidden');
   document.getElementById('nextBtn').disabled = false;
-  document.getElementById('nextBtn').textContent = currentQ < quizData.length - 1 ? '다음 문제로 →' : '결과 보기 🎯';
 }
 
 function nextQuestion() {
-  if (currentQ < quizData.length - 1) {
-    currentQ++;
-    showQuestion();
-    window.scrollTo(0, 0);
-  } else {
+  if (currentQ < quizData.length - 1) { currentQ++; showQuestion(); }
+  else {
     document.getElementById('quizArea').classList.add('hidden');
     document.getElementById('quizReviewArea').classList.remove('hidden');
-    const percent = Math.round(score / quizData.length * 100);
-    document.getElementById('finalScore').textContent = `결과: 총 ${quizData.length}문제 중 ${score}문제 정답 (${percent}%)`;
-
-    let html = "";
-    if (wrongAnswers.length === 0) {
-      html = `<div style="text-align:center;padding:30px;font-size:1.2rem">🎉 만점입니다! 정말 훌륭해요!</div>`;
-    } else {
-      wrongAnswers.forEach((item, i) => {
-        html += `<div style="background:var(--card2);padding:20px;border-radius:12px;margin-bottom:20px;border:1px solid var(--border)">
-          <h4 style="margin-bottom:15px;line-height:1.6">오답 ${i+1}. ${item.question}</h4>
-          <div style="margin-bottom:15px">${item.options.map((opt, j) => {
-            let s = j === item.answer ? "color:var(--success);font-weight:bold" : (j === item.userAnswer ? "color:var(--error);text-decoration:line-through" : "color:var(--muted)");
-            return `<div style="${s};padding:4px 0">${j+1}. ${opt}</div>`;
+    document.getElementById('finalScore').textContent = `결과: 총 ${quizData.length}문제 중 ${score}문제 정답`;
+    let reviewHTML = "";
+    if (wrongAnswers.length === 0) reviewHTML = `<div style="text-align:center; padding:30px; font-size:1.1rem">🎉 만점입니다! 정말 훌륭해요!</div>`;
+    else {
+      wrongAnswers.forEach((item, index) => {
+        reviewHTML += `<div style="background:var(--card2); padding:20px; border-radius:12px; margin-bottom:20px; border:1px solid var(--border);">
+          <h4 style="margin-bottom:15px;">오답 ${index + 1}. ${item.question}</h4>
+          <div style="margin-bottom:15px;">${item.options.map((opt, i) => {
+            let style = (i === item.correctAnswer) ? "color:var(--success); font-weight:bold;" : (i === item.userAnswer ? "color:var(--error); text-decoration:line-through;" : "color:var(--muted);");
+            return `<div style="${style}">${i+1}. ${opt}</div>`;
           }).join('')}</div>
-          <div style="padding:15px;background:#1a2236;border-left:4px solid var(--accent);border-radius:8px;line-height:1.7">
-            <strong>[해설]</strong><br>${item.explanation}
-            ${item.simple_explanation ? `<div class="simple-explanation" style="margin-top:8px"><strong>💡 쉬운 설명:</strong> ${item.simple_explanation}</div>` : ''}
-            ${item.source_page ? `<div style="margin-top:8px;font-size:0.9rem;color:var(--muted)">📄 출처: ${item.source_page}페이지</div>` : ''}
-          </div>
+          <div style="padding:15px; background:#1a2236; border-left:4px solid var(--accent);"><strong>[해설]</strong><br>${item.explanation}</div>
         </div>`;
       });
     }
-    document.getElementById('reviewList').innerHTML = html;
+    document.getElementById('reviewList').innerHTML = reviewHTML;
   }
 }
 
