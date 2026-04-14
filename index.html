@@ -184,9 +184,10 @@ async function askGroq(prompt) {
         'Authorization': `Bearer ${keyInput}`,
         'Content-Type': 'application/json' 
       },
-      body: JSON.stringify({
-        model: "llama3-70b-8192", // JSON 구조를 가장 잘 유지하는 고성능 모델
+        body: JSON.stringify({
+        model: "llama-3.3-70b-versatile", // <- 최신 Llama 3.3 모델로 변경
         messages: [
+
           {
             role: "system",
             content: "You are a helpful nursing assistant. You must respond ONLY with valid JSON. Do not include any introductory or concluding text."
