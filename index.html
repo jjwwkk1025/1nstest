@@ -1,130 +1,109 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>StudyAI | 간호학 전문 학습 조교</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
-<style>
-  /* 기존 스타일 유지 */
-  *{margin:0;padding:0;box-sizing:border-box}
-  body{font-family:'Pretendard','Segoe UI',sans-serif;background:#0f1117;color:#e2e8f0;min-height:100vh}
-  :root{--accent:#6c63ff;--accent2:#a78bfa;--bg:#0f1117;--card:#1a1d27;--card2:#22263a;--border:#2d3148;--muted:#8892b0;--success:#10b981;--error:#f87171}
-  header{background:#1a1d27;border-bottom:1px solid var(--border);padding:16px 24px}
-  .logo{font-size:1.4rem;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-  .container{max-width:860px;margin:0 auto;padding:32px 16px}
-  .section-card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:28px;margin-bottom:24px}
-  .input-group{margin-bottom:20px}
-  .input-label{display:block;margin-bottom:8px;font-size:0.9rem;color:var(--accent2);font-weight:600}
-  input[type="text"], input[type="password"]{width:100%;padding:12px;border-radius:10px;border:1px solid var(--border);background:var(--card2);color:white;outline:none}
-  .upload-area{border:2px dashed var(--border);border-radius:20px;padding:40px 24px;text-align:center;cursor:pointer;transition:all 0.3s}
-  .btn{padding:12px 24px;border-radius:12px;border:none;cursor:pointer;font-weight:600;width:100%}
-  .btn-primary{background:linear-gradient(135deg,var(--accent),#8b5cf6);color:#fff}
-  .hidden{display:none!important}
-</style>
+    <meta charset="UTF-8">
+    <title>StudyAI | 간호학 전문 조교</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background: #0f1117; color: #e2e8f0; font-family: sans-serif; }
+        .card { background: #1a1d27; border: 1px solid #2d3148; border-radius: 1rem; padding: 1.5rem; }
+    </style>
 </head>
-<body>
+<body class="p-5">
+    <div class="max-w-3xl mx-auto">
+        <header class="mb-8">
+            <h1 class="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">StudyAI 조교 모드</h1>
+        </header>
 
-<header><div class="logo">StudyAI <span>· 간호학 전문 조교 모드</span></div></header>
+        <div class="card space-y-4">
+            <input type="password" id="apiKey" placeholder="Gemini API Key" class="w-full p-3 rounded-lg bg-[#22263a] border border-[#2d3148] outline-none">
+            <input type="file" id="pdfInput" accept=".pdf" class="w-full">
+            <button onclick="processData()" class="w-full py-3 bg-indigo-600 rounded-lg font-bold hover:bg-indigo-700">분석 및 퀴즈 생성</button>
+        </div>
 
-<div class="container">
-  <div id="uploadSection" class="section-card">
-    <div class="input-group">
-      <label class="input-label">🔑 구글 API 키</label>
-      <input type="password" id="apiKeyInput" placeholder="API Key 입력">
+        <div id="status" class="mt-4 text-center text-purple-400"></div>
+        <div id="result" class="mt-6 space-y-4"></div>
     </div>
-    <div class="input-group">
-      <label class="input-label">📌 과목명</label>
-      <input type="text" id="subjectInput" placeholder="예: 성인간호학 - 순환기계">
-    </div>
-    <div class="upload-area" onclick="document.getElementById('fileInput').click()">
-      <span>📄 강의 자료(PDF) 업로드</span>
-      <input type="file" id="fileInput" accept=".pdf" style="display:none">
-      <p id="fileName" style="margin-top:10px; color:var(--muted)"></p>
-    </div>
-    <button class="btn btn-primary" id="analyzeBtn" disabled onclick="startAnalysis()" style="margin-top:20px">✨ 학습 시작</button>
-  </div>
 
-  <div id="loadingSection" class="hidden" style="text-align:center; padding:50px;">
-    <p>AI가 자료를 분석 중입니다...</p>
-  </div>
+    <script>
+        let fileText = "";
 
-  <div id="resultSection" class="hidden">
-    <div id="summaryContent" class="section-card"></div>
-    <div id="quizSection" class="section-card">
-        <label>문제 수: </label>
-        <input type="number" id="quizCount" value="10" min="5" max="20" style="color:black">
-        <button class="btn btn-primary" onclick="generateQuiz()">퀴즈 생성</button>
-        <div id="quizArea" style="margin-top:20px"></div>
-    </div>
-  </div>
-</div>
+        // PDF 읽기
+        document.getElementById('pdfInput').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onload = async function() {
+                const pdf = await pdfjsLib.getDocument({data: new Uint8Array(this.result)}).promise;
+                let text = "";
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const content = await page.getTextContent();
+                    text += `\n[페이지 ${i}]\n` + content.items.map(s => s.str).join(" ");
+                }
+                fileText = text;
+                document.getElementById('status').innerText = "파일 준비 완료!";
+            };
+            reader.readAsArrayBuffer(file);
+        });
 
-<script>
-let fileContent = "";
+        async function processData() {
+            const apiKey = document.getElementById('apiKey').value;
+            if (!apiKey || !fileText) return alert("API 키와 파일을 확인하세요.");
+            
+            document.getElementById('status').innerText = "AI가 분석 중입니다... (잠시만 기다려주세요)";
 
-document.getElementById('fileInput').addEventListener('change', async (e) => {
-  const file = e.target.files[0];
-  const pdfjsLib = window['pdfjs-dist/build/pdf'];
-  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
-  
-  const reader = new FileReader();
-  reader.onload = async function() {
-    const pdf = await pdfjsLib.getDocument({data: new Uint8Array(this.result)}).promise;
-    let text = "";
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
-      const content = await page.getTextContent();
-      text += `\n[페이지 ${i}]\n` + content.items.map(s => s.str).join(" ");
-    }
-    fileContent = text;
-    document.getElementById('fileName').textContent = file.name;
-    document.getElementById('analyzeBtn').disabled = false;
-  };
-  reader.readAsArrayBuffer(file);
-});
+            const prompt = `
+            너는 간호학 전문 학습 조교야. 아래 PDF 내용을 분석해서 다음 형식의 JSON만 응답해.
+            절대 다른 설명은 하지 마.
+            {
+                "summary": "핵심 요약(국시 포인트 포함)",
+                "quiz": [
+                    {"question": "문제 내용(출처 페이지 명시)", "options": ["1", "2", "3", "4", "5"], "answer": 0, "explanation": "해설 및 참고 페이지"}
+                ]
+            }
+            내용: ${fileText.substring(0, 10000)}
+            `;
 
-async function callGemini(prompt) {
-  const key = document.getElementById('apiKeyInput').value;
-  // 모델명 변경: gemini-1.5-flash
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`;
-  
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-  });
-  const data = await response.json();
-  return data.candidates[0].content.parts[0].text;
-}
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ 
+                        contents: [{ parts: [{ text: prompt }] }],
+                        generationConfig: { responseMimeType: "application/json" }
+                    })
+                });
 
-async function startAnalysis() {
-  document.getElementById('uploadSection').classList.add('hidden');
-  document.getElementById('loadingSection').classList.remove('hidden');
-  
-  const prompt = `분석내용: ${fileContent.substring(0, 8000)}
-  지침: 이 내용을 요약하고 핵심 키워드를 추출해서 JSON 형식({"keywords": [], "summary": ""})으로 줘.`;
-  
-  try {
-    const res = await callGemini(prompt);
-    const jsonStr = res.replace(/```json|```/g, "");
-    const data = JSON.parse(jsonStr);
-    
-    document.getElementById('summaryContent').innerHTML = `<h3>요약</h3><p>${data.summary}</p>`;
-    document.getElementById('loadingSection').classList.add('hidden');
-    document.getElementById('resultSection').classList.remove('hidden');
-  } catch(e) { alert("오류: " + e.message); }
-}
+                const data = await response.json();
+                const result = JSON.parse(data.candidates[0].content.parts[0].text);
+                
+                displayResult(result);
+            } catch (err) {
+                console.error(err);
+                document.getElementById('status').innerText = "오류 발생: " + err.message;
+            }
+        }
 
-async function generateQuiz() {
-    const count = document.getElementById('quizCount').value;
-    const prompt = `내용: ${fileContent.substring(0, 8000)}
-    지침: 위 내용을 바탕으로 객관식 퀴즈 ${count}개를 만들어줘. JSON 배열 형식[{"question": "", "options": [], "answer": 0, "explanation": ""}]으로 줘.`;
-    
-    const res = await callGemini(prompt);
-    document.getElementById('quizArea').innerHTML = "퀴즈 생성 완료! (콘솔 확인)";
-    console.log(res);
-}
-</script>
+        function displayResult(data) {
+            const resDiv = document.getElementById('result');
+            resDiv.innerHTML = `<div class="card"><h2 class="text-xl font-bold mb-2">요약</h2><p>${data.summary}</p></div>`;
+            
+            data.quiz.forEach((q, i) => {
+                resDiv.innerHTML += `
+                    <div class="card mt-4">
+                        <p class="font-bold">${i+1}. ${q.question}</p>
+                        ${q.options.map((opt, j) => `<p class="ml-4">${j+1}. ${opt}</p>`).join('')}
+                        <p class="mt-2 text-green-400">정답: ${q.answer + 1}</p>
+                        <p class="text-sm text-gray-400">해설: ${q.explanation}</p>
+                    </div>
+                `;
+            });
+            document.getElementById('status').innerText = "완료!";
+        }
+
+        // PDF.js 워커 설정
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+    </script>
 </body>
 </html>
