@@ -174,7 +174,7 @@ async function askGemini(prompt) {
   if (!keyInput) throw new Error("API 키를 먼저 입력해주세요!");
   localStorage.setItem('study_ai_api_key', keyInput);
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key=${keyInput}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${keyInput}`;
 
   try {
     const response = await fetch(url, {
