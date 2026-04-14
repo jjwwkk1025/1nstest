@@ -271,7 +271,7 @@ async function askGemini(prompt, systemMsg) {
 
   try {
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key=${encodeURIComponent(key)}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key=${keyInput)}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
