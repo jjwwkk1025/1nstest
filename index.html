@@ -211,7 +211,7 @@ async function askGroq(prompt) {
   } catch (err) { throw err; }
 }
 
-async function startAnalysis() {
+  async function startAnalysis() {
   const subject = document.getElementById('subjectInput').value || "미지정 과목";
   
   document.getElementById('siteLogo').textContent = "귀요미 진서>.<를 위한 시험준비 도구";
@@ -220,17 +220,41 @@ async function startAnalysis() {
   document.getElementById('uploadSection').classList.add('hidden');
   document.getElementById('loadingSection').classList.remove('hidden');
   
-  const prompt = `간호학 조교로서 업로드 내용을 분석해 JSON으로 답하세요. 모든 용어 영어 병기 필수. {"keywords": [], "lecture": ""} 과목: ${subject} 내용: ${fileContent.substring(0, 10000)}`;
+  // 1. 프롬프트 수정: AI가 JSON 구조를 마음대로 바꾸지 못하게 강력하게 형태 지정
+  const prompt = `간호학 조교로서 업로드 내용을 분석해 다음 JSON 형식으로만 정확하게 답하세요: {"keywords": ["키워드1", "키워드2"], "lecture": "전체 개념 요약 텍스트"}\n\n과목: ${subject}\n내용: ${fileContent.substring(0, 10000)}`;
   
   try {
     const res = await askGroq(prompt);
-    const data = JSON.parse(res);
-    document.getElementById('keywords').innerHTML = data.keywords.map(k => `<span class="keyword-chip">${k}</span>`).join('');
-    document.getElementById('lectureContent').innerHTML = data.lecture.replace(/\n/g, '<br>');
+    let data = JSON.parse(res);
+    
+    // 2. 방어 코드 (1차 확인): AI가 데이터를 중첩된 객체로 보냈을 경우를 대비해 추출
+    if (!data.lecture && data.response && data.response.lecture) data = data.response;
+    if (!data.lecture && data.analysis && data.analysis.lecture) data = data.analysis;
+    
+    // 3. 방어 코드 (2차 확인): lecture가 아예 없거나 문자가 아닌 배열/객체로 올 경우 안전하게 변환
+    const keywords = Array.isArray(data.keywords) ? data.keywords : [];
+    let lectureText = "강의 내용을 분석하지 못했습니다. 다시 시도해주세요.";
+    
+    if (typeof data.lecture === 'string') {
+        lectureText = data.lecture;
+    } else if (Array.isArray(data.lecture)) {
+        lectureText = data.lecture.join('\n'); // 배열일 경우 텍스트로 합치기
+    } else if (data.lecture) {
+        lectureText = JSON.stringify(data.lecture); // 그 외 객체일 경우 강제 문자열 변환
+    }
+    
+    // 화면에 출력 (안전하게 String으로 바뀐 텍스트에만 replace 적용)
+    document.getElementById('keywords').innerHTML = keywords.map(k => `<span class="keyword-chip">${k}</span>`).join('');
+    document.getElementById('lectureContent').innerHTML = String(lectureText).replace(/\n/g, '<br>');
+    
     document.getElementById('loadingSection').classList.add('hidden');
     document.getElementById('resultSection').classList.remove('hidden');
-  } catch (e) { alert("분석 실패: " + e.message); location.reload(); }
+  } catch (e) { 
+    alert("분석 실패: " + e.message); 
+    location.reload(); 
+  }
 }
+
 
 function startQuizGen() {
   let count = parseInt(document.getElementById('quizCountInput').value);
