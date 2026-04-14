@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>간호학과 조교 - Gemini</title>
+<title id="mainTitle">간호학과 조교 (Gemini)</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
@@ -133,135 +133,76 @@ let score = 0;
 let answered = false;
 let wrongAnswers = [];
 
+// PDF.js 워커 전역 설정 (파일 로드 지연 방지)
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+
 window.onload = () => {
   const saved = localStorage.getItem('study_ai_api_key_gemini');
   if (saved) document.getElementById('apiKeyInput').value = saved;
 };
 
+// 파일 선택 시 텍스트 추출 로직 보강
 document.getElementById('fileInput').addEventListener('change', async (e) => {
   const file = e.target.files[0];
   if (!file) return;
-  document.getElementById('fileName').textContent = `⏳ ${file.name} (추출 중...)`;
-  document.getElementById('fileBadge').classList.remove('hidden');
-  document.getElementById('analyzeBtn').disabled = true;
 
-  const reader = new FileReader();
-  if (file.type === "application/pdf") {
-    reader.onload = async function() {
-      try {
-        const pdfjsLib = window['pdfjs-dist/build/pdf'];
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
-        const pdf = await pdfjsLib.getDocument(new Uint8Array(this.result)).promise;
-        let text = "";
-        for (let i = 1; i <= Math.min(pdf.numPages, 20); i++) {
-          const page = await pdf.getPage(i);
-          const content = await page.getTextContent();
-          text += `\n--- [${i}페이지] ---\n` + content.items.map(s => s.str).join(" ") + "\n";
+  const fileNameDisplay = document.getElementById('fileName');
+  const fileBadge = document.getElementById('fileBadge');
+  const analyzeBtn = document.getElementById('analyzeBtn');
+
+  fileNameDisplay.textContent = `⏳ ${file.name} (추출 중...)`;
+  fileBadge.classList.remove('hidden');
+  analyzeBtn.disabled = true;
+
+  try {
+    if (file.type === "application/pdf") {
+      const reader = new FileReader();
+      reader.onload = async function() {
+        try {
+          const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(this.result) }).promise;
+          let text = "";
+          for (let i = 1; i <= Math.min(pdf.numPages, 20); i++) {
+            const page = await pdf.getPage(i);
+            const content = await page.getTextContent();
+            text += `\n--- [${i}페이지] ---\n` + content.items.map(s => s.str).join(" ") + "\n";
+          }
+          fileContent = text;
+          if (!text.trim()) throw new Error("PDF에서 추출된 텍스트가 없습니다.");
+          fileNameDisplay.textContent = `✔ ${file.name} (준비 완료!)`;
+          analyzeBtn.disabled = false;
+        } catch (err) {
+          alert("PDF 처리 오류: " + err.message);
+          fileNameDisplay.textContent = "❌ 추출 실패";
         }
-        fileContent = text;
-        document.getElementById('fileName').textContent = `✔ ${file.name} (준비 완료!)`;
-        document.getElementById('analyzeBtn').disabled = false;
-      } catch (err) { alert("PDF 추출 실패: " + err.message); }
-    };
-    reader.readAsArrayBuffer(file);
-  } else {
-    reader.onload = function() {
-      fileContent = this.result;
-      document.getElementById('fileName').textContent = `✔ ${file.name}`;
-      document.getElementById('analyzeBtn').disabled = false;
-    };
-    reader.readAsText(file);
+      };
+      reader.readAsArrayBuffer(file);
+    } else {
+      const reader = new FileReader();
+      reader.onload = function() {
+        fileContent = this.result;
+        fileNameDisplay.textContent = `✔ ${file.name}`;
+        analyzeBtn.disabled = false;
+      };
+      reader.readAsText(file);
+    }
+  } catch (e) {
+    alert("파일 읽기 실패: " + e.message);
   }
 });
 
-// ✅ 강화된 JSON 파싱 함수
+// ✅ JSON 파싱 안전 함수
 function safeParseJSON(raw) {
-  if (!raw || typeof raw !== 'string') {
-    throw new Error("응답이 비어있거나 문자열이 아닙니다.");
+  try {
+    const jsonMatch = raw.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
+    const target = jsonMatch ? jsonMatch[0] : raw;
+    return JSON.parse(target.replace(/[\u0000-\u001F]+/g, ""));
+  } catch (e) {
+    console.error("JSON 파싱 에러:", e, "원본:", raw);
+    throw new Error("결과를 해석하는 데 실패했습니다. 다시 시도해 주세요.");
   }
-
-  const trimmed = raw.trim();
-
-  // 1단계: 그대로 파싱 시도
-  try { 
-    return JSON.parse(trimmed); 
-  } catch(e) {
-    console.log("1단계 실패:", e.message);
-  }
-
-  // 2단계: 마크다운 코드블록 제거
-  const patterns = [
-    /```json\s*([\s\S]*?)```/gi,
-    /```\s*([\s\S]*?)```/gi,
-    /^```[\s\S]*?\n([\s\S]*?)\n```$/gm
-  ];
-
-  for (let pattern of patterns) {
-    const match = trimmed.match(pattern);
-    if (match && match[1]) {
-      try { 
-        return JSON.parse(match[1].trim()); 
-      } catch(e) {}
-    }
-  }
-
-  // 3단계: 모든 마크다운 제거
-  const stripped = trimmed
-    .replace(/```json\s*/gi, '')
-    .replace(/```\s*/g, '')
-    .replace(/^#+\s*.*/gm, '')
-    .trim();
-
-  try { 
-    return JSON.parse(stripped); 
-  } catch(e) {
-    console.log("3단계 실패:", e.message);
-  }
-
-  // 4단계: JSON 객체 추출
-  const objMatch = stripped.match(/\{[\s\S]*\}/);
-  if (objMatch) {
-    try { 
-      return JSON.parse(objMatch[0]); 
-    } catch(e) {
-      console.log("4단계 실패:", e.message);
-    }
-  }
-
-  // 5단계: JSON 배열 추출
-  const arrMatch = stripped.match(/\[[\s\S]*\]/);
-  if (arrMatch) {
-    try { 
-      return JSON.parse(arrMatch[0]); 
-    } catch(e) {
-      console.log("5단계 실패:", e.message);
-    }
-  }
-
-  // 6단계: 수정된 JSON 시도
-  const fixed = stripped.replace(/'/g, '"');
-  try { 
-    return JSON.parse(fixed); 
-  } catch(e) {
-    console.log("6단계 실패:", e.message);
-  }
-
-  // 7단계: 개행/탭 정리
-  const cleaned = stripped
-    .replace(/[\n\r\t]/g, ' ')
-    .replace(/,\s*}/g, '}')
-    .replace(/,\s*]/g, ']');
-  
-  try { 
-    return JSON.parse(cleaned); 
-  } catch(e) {
-    console.log("7단계 실패:", e.message);
-  }
-
-  throw new Error(`JSON 파싱 실패. 응답: "${trimmed.substring(0, 200)}..."`);
 }
 
-// ✅ Gemini API 호출 함수
+// ✅ API 호출 함수 (URL 오타 수정됨)
 async function askGemini(prompt, systemMsg) {
   const key = document.getElementById('apiKeyInput').value.trim();
   if (!key) throw new Error("API 키를 입력해주세요!");
@@ -269,113 +210,42 @@ async function askGemini(prompt, systemMsg) {
 
   const fullPrompt = systemMsg ? `${systemMsg}\n\n${prompt}` : prompt;
 
-  try {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key=${keyInput)}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [{ text: fullPrompt }]
-            }
-          ],
-          generationConfig: {
-            temperature: 0.1,
-            maxOutputTokens: 8000
-          }
-        })
-      }
-    );
-
-    const data = await res.json();
-    
-    if (!res.ok) {
-      const errorMsg = data.error?.message || "API 요청 실패";
-      throw new Error(`[${res.status}] ${errorMsg}`);
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: fullPrompt }] }],
+        generationConfig: { temperature: 0.1, maxOutputTokens: 8000 }
+      })
     }
+  );
 
-    const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!content) {
-      throw new Error("API로부터 빈 응답을 받았습니다.");
-    }
-
-    console.log("API 응답 (처음 300자):", content.substring(0, 300));
-    return content;
-
-  } catch (error) {
-    throw new Error(`API 호출 실패: ${error.message}`);
-  }
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error?.message || "요청 실패");
+  
+  const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!content) throw new Error("응답 내용이 없습니다.");
+  return content;
 }
 
-// ✅ 데이터 유효성 검사 함수
-function validateQuizData(questions) {
-  if (!Array.isArray(questions)) {
-    throw new Error("questions이 배열이 아닙니다.");
-  }
-
-  if (questions.length === 0) {
-    throw new Error("생성된 문제가 0개입니다.");
-  }
-
-  const validated = questions
-    .filter(q => {
-      const hasQuestion = q.question && String(q.question).trim().length > 0;
-      const hasOptions = Array.isArray(q.options) && q.options.length >= 2;
-      const hasAnswer = typeof q.answer !== 'undefined' && q.answer !== null;
-      
-      if (!hasQuestion || !hasOptions || !hasAnswer) {
-        console.warn("필터링된 문제:", q);
-        return false;
-      }
-      return true;
-    })
-    .map(q => {
-      const answer = parseInt(q.answer);
-      if (isNaN(answer) || answer < 0 || answer >= q.options.length) {
-        console.warn(`잘못된 answer 인덱스 교정: ${answer} → 0`);
-        return { ...q, answer: 0 };
-      }
-      return {
-        question: String(q.question).trim(),
-        options: q.options.map(o => String(o).trim()).slice(0, 5),
-        answer: answer,
-        explanation: String(q.explanation || "해설 없음").trim()
-      };
-    });
-
-  if (validated.length === 0) {
-    throw new Error("유효한 문제가 0개입니다.");
-  }
-
-  return validated;
-}
-
+// ✅ 학습 분석 시작
 async function startAnalysis() {
   const subject = document.getElementById('subjectInput').value || "미지정 과목";
-  document.getElementById('siteLogo').textContent = "귀요미 진서>.<를 위한 시험준비 도구";
   document.getElementById('uploadSection').classList.add('hidden');
   document.getElementById('loadingSection').classList.remove('hidden');
-  document.getElementById('loadingMsg').textContent = "조교가 자료를 분석하고 있습니다...";
 
-  const systemMsg = `You are a helpful nursing exam assistant. Always respond with valid JSON only. No markdown, no explanation outside JSON.
-Return ONLY this JSON format: {"keywords": ["keyword1", "keyword2", "keyword3"], "lecture": "full summary content"}`;
-
-  const prompt = `과목: ${subject}\n\n강의 내용:\n${fileContent.substring(0, 10000)}`;
+  const systemMsg = `You are a nursing assistant. Respond ONLY with a valid JSON object: {"keywords": [], "lecture": ""}. Use Korean. Add English terms in parentheses for medical jargon.`;
+  const prompt = `과목: ${subject}\n\n내용:\n${fileContent.substring(0, 10000)}`;
 
   try {
     const raw = await askGemini(prompt, systemMsg);
     const data = safeParseJSON(raw);
 
-    const keywords = Array.isArray(data.keywords) ? data.keywords : [];
-    let lectureText = "분석 실패. 다시 시도해주세요.";
-    if (typeof data.lecture === 'string') lectureText = data.lecture;
-    else if (Array.isArray(data.lecture)) lectureText = data.lecture.join('\n');
-    else if (data.lecture) lectureText = JSON.stringify(data.lecture);
-
-    document.getElementById('keywords').innerHTML = keywords.map(k => `<span class="keyword-chip">${k}</span>`).join('');
-    document.getElementById('lectureContent').innerHTML = lectureText.replace(/\n/g, '<br>');
+    document.getElementById('keywords').innerHTML = (data.keywords || []).map(k => `<span class="keyword-chip">${k}</span>`).join('');
+    document.getElementById('lectureContent').innerHTML = (data.lecture || "").replace(/\n/g, '<br>');
+    
     document.getElementById('loadingSection').classList.add('hidden');
     document.getElementById('resultSection').classList.remove('hidden');
   } catch (e) {
@@ -384,81 +254,33 @@ Return ONLY this JSON format: {"keywords": ["keyword1", "keyword2", "keyword3"],
   }
 }
 
+// ✅ 퀴즈 생성
 function startQuizGen() {
   let count = parseInt(document.getElementById('quizCountInput').value) || 10;
-  count = Math.min(Math.max(count, 5), 30);
-  document.getElementById('quizErrorBox').style.display = 'none';
   document.getElementById('quizSetup').classList.add('hidden');
   generateQuiz(count);
-}
-
-function resetQuizSetup() {
-  document.getElementById('quizReviewArea').classList.add('hidden');
-  document.getElementById('quizArea').classList.add('hidden');
-  document.getElementById('quizSetup').classList.remove('hidden');
-  window.scrollTo(0, 0);
 }
 
 async function generateQuiz(count) {
   document.getElementById('loadingSection').classList.remove('hidden');
   document.getElementById('resultSection').classList.add('hidden');
-  document.getElementById('loadingMsg').textContent = `${count}개 문제를 생성하고 있습니다...`;
 
-  const systemMsg = `You are a Korean nursing exam question generator. You MUST respond ONLY with valid JSON. No text before or after JSON.
-Return ONLY this exact format: {"questions": [{"question": "문제내용", "options": ["선택지1", "선택지2", "선택지3", "선택지4", "선택지5"], "answer": 0, "explanation": "설명"}]}`;
+  const systemMsg = `You are a nursing exam creator. Create ${count} multiple choice questions in Korean. Respond ONLY with JSON: {"questions": [{"question": "", "options": ["", "", "", "", ""], "answer": 0, "explanation": ""}]}`;
+  const prompt = `내용 바탕으로 5지선다 문제 ${count}개 생성:\n${fileContent.substring(0, 12000)}`;
 
-  const prompt = `간호학 문제를 정확히 ${count}개 생성하세요.
-
-규칙:
-- 각 문제는 question, options(5개), answer(0~4 인덱스), explanation 필드 필수
-- answer는 options 배열의 정답 인덱스(숫자)
-- 모든 텍스트는 한국어
-- JSON 외의 텍스트는 절대 금지
-
-강의 내용:
-${fileContent.substring(0, 12000)}`;
-
-  let attempts = 0;
-  const maxAttempts = 3;
-
-  while (attempts < maxAttempts) {
-    attempts++;
-    try {
-      const raw = await askGemini(prompt, systemMsg);
-      const parsed = safeParseJSON(raw);
-
-      let questions = parsed.questions || parsed;
-      if (!Array.isArray(questions)) {
-        const values = Object.values(parsed);
-        questions = values.find(v => Array.isArray(v)) || [];
-      }
-
-      quizData = validateQuizData(questions);
-
-      currentQ = 0;
-      score = 0;
-      wrongAnswers = [];
-      
-      document.getElementById('loadingSection').classList.add('hidden');
-      document.getElementById('resultSection').classList.remove('hidden');
-      document.getElementById('quizArea').classList.remove('hidden');
-      showQuestion();
-      return;
-
-    } catch (e) {
-      console.error(`시도 ${attempts}/${maxAttempts} 실패:`, e.message);
-      if (attempts >= maxAttempts) {
-        document.getElementById('loadingSection').classList.add('hidden');
-        document.getElementById('resultSection').classList.remove('hidden');
-        document.getElementById('quizSetup').classList.remove('hidden');
-        const errBox = document.getElementById('quizErrorBox');
-        errBox.style.display = 'block';
-        errBox.innerHTML = `❌ 문제 생성 실패 (${maxAttempts}회 시도)<br>
-        - 문항 수를 줄이거나 다시 시도하세요<br>
-        - API 키가 유효한지 확인하세요<br>
-        - 오류: ${e.message}`;
-      }
-    }
+  try {
+    const raw = await askGemini(prompt, systemMsg);
+    const parsed = safeParseJSON(raw);
+    quizData = parsed.questions || [];
+    
+    currentQ = 0; score = 0; wrongAnswers = [];
+    document.getElementById('loadingSection').classList.add('hidden');
+    document.getElementById('resultSection').classList.remove('hidden');
+    document.getElementById('quizArea').classList.remove('hidden');
+    showQuestion();
+  } catch (e) {
+    alert("퀴즈 생성 실패: " + e.message);
+    resetQuizSetup();
   }
 }
 
@@ -500,24 +322,15 @@ function nextQuestion() {
   } else {
     document.getElementById('quizArea').classList.add('hidden');
     document.getElementById('quizReviewArea').classList.remove('hidden');
-    document.getElementById('finalScore').textContent = `결과: 총 ${quizData.length}문제 중 ${score}문제 정답 (${Math.round(score/quizData.length*100)}점)`;
-
+    document.getElementById('finalScore').textContent = `결과: 총 ${quizData.length}문제 중 ${score}문제 정답`;
     let html = "";
-    if (wrongAnswers.length === 0) {
-      html = `<div style="text-align:center;padding:30px;font-size:1.2rem">🎉 만점입니다! 정말 훌륭해요!</div>`;
-    } else {
-      wrongAnswers.forEach((item, i) => {
-        html += `<div style="background:var(--card2);padding:20px;border-radius:12px;margin-bottom:20px;border:1px solid var(--border)">
-          <h4 style="margin-bottom:15px;line-height:1.6">오답 ${i+1}. ${item.question}</h4>
-          <div style="margin-bottom:15px">${item.options.map((opt, j) => {
-            let s = j === item.answer ? "color:var(--success);font-weight:bold" : (j === item.userAnswer ? "color:var(--error);text-decoration:line-through" : "color:var(--muted)");
-            return `<div style="${s};padding:4px 0">${j+1}. ${opt}</div>`;
-          }).join('')}</div>
-          <div style="padding:15px;background:#1a2236;border-left:4px solid var(--accent);border-radius:8px;line-height:1.7"><strong>[해설]</strong><br>${item.explanation}</div>
-        </div>`;
-      });
-    }
-    document.getElementById('reviewList').innerHTML = html;
+    wrongAnswers.forEach((item, i) => {
+      html += `<div style="background:var(--card2);padding:20px;border-radius:12px;margin-bottom:20px;border:1px solid var(--border)">
+        <h4 style="margin-bottom:15px">오답 ${i+1}. ${item.question}</h4>
+        <div style="padding:15px;background:#1a2236;border-left:4px solid var(--accent);">${item.explanation}</div>
+      </div>`;
+    });
+    document.getElementById('reviewList').innerHTML = html || "🎉 만점입니다!";
   }
 }
 
@@ -526,6 +339,13 @@ function switchTab(t) {
   document.getElementById('quizTab').classList.toggle('hidden', t !== 'quiz');
   document.getElementById('tabSummary').classList.toggle('active', t === 'summary');
   document.getElementById('tabQuiz').classList.toggle('active', t === 'quiz');
+}
+
+function resetQuizSetup() {
+  document.getElementById('quizArea').classList.add('hidden');
+  document.getElementById('quizSetup').classList.remove('hidden');
+  document.getElementById('resultSection').classList.remove('hidden');
+  document.getElementById('loadingSection').classList.add('hidden');
 }
 </script>
 </body>
